@@ -1,4 +1,5 @@
 /*
+ *
 Copyright (c) 2003-2006 by Juliusz Chroboczek
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -210,6 +211,8 @@ THE SOFTWARE.
 #include "log.h"
 #include "auth.h"
 #include "tunnel.h"
+#include "sd-daemon.h"
+#include "sd.h"
 
 extern AtomPtr configFile;
 extern int daemonise;

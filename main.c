@@ -155,8 +155,12 @@ main(int argc, char **argv)
     if(pidFile)
         writePid(pidFile->string);
 
-    listener = create_listener(proxyAddress->string, 
-                               proxyPort, httpAccept, NULL);
+    if(sd_listen_fds(0) == 1)
+        listener = create_listener_sd(httpAccept, NULL);
+    else
+        listener = create_listener(proxyAddress->string, 
+                                   proxyPort, httpAccept, NULL);
+
     if(!listener) {
         if(pidFile) unlink(pidFile->string);
         exit(1);
