@@ -83,6 +83,8 @@ typedef struct _CacheControl {
     int s_maxage;
     int min_fresh;
     int max_stale;
+    int stale_while_revalidate;
+    int stale_if_error;
 } CacheControlRec, *CacheControlPtr;
 
 extern int cacheIsShared;

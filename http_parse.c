@@ -1127,6 +1127,32 @@ httpParseHeaders(int client, AtomPtr url,
                     }
                     a = atoi(buf + v_start);
                     cache_control.max_stale = a;
+                } else if(token_compare(buf, token_start, token_end,
+                                        "stale-while-revalidate")) {
+                    int a;
+                    if(v_start <= 0 || !digit(buf[v_start])) {
+                        do_log(L_WARN, "Couldn't parse Cache-Control: ");
+                        do_log_n(L_WARN, buf + token_start, 
+                                 (v_end >= 0 ? v_end : token_end) -
+                                 token_start);
+                        do_log(L_WARN, "\n");
+                    } else {
+                        a = atoi(buf + v_start);
+                        cache_control.stale_while_revalidate = a;
+                    }
+                } else if(token_compare(buf, token_start, token_end,
+                                        "stale-if-error")) {
+                    int a;
+                    if(v_start <= 0 || !digit(buf[v_start])) {
+                        do_log(L_WARN, "Couldn't parse Cache-Control: ");
+                        do_log_n(L_WARN, buf + token_start, 
+                                 (v_end >= 0 ? v_end : token_end) -
+                                 token_start);
+                        do_log(L_WARN, "\n");
+                    } else {
+                        a = atoi(buf + v_start);
+                        cache_control.stale_if_error = a;
+                    }
                 } else {
                     do_log(L_WARN, "Unsupported Cache-Control directive ");
                     do_log_n(L_WARN, buf + token_start, 
