@@ -147,3 +147,9 @@ clean:
 	-rm -f polipo.dvi polipo.ps polipo.ps.gz polipo.pdf polipo.html
 	-rm -rf ./html/
 	-rm -f polipo.man.html
+
+check: polipo$(EXE) test/http-test-webserver test/sd-launch
+	test/run-test.sh
+
+test/http-test-webserver: test/http-test-webserver.c sd-daemon.c
+test/sd-launch: test/sd-launch.c
