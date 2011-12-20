@@ -74,13 +74,13 @@ httpLocalRequest(ObjectPtr object, int method, int from, int to,
 
     /* objectFillFromDisk already did the real work but we have to
        make sure we don't get into an infinite loop. */
-    if(object->flags & OBJECT_INITIAL) {
+    if(object->flags & OBJECT_FLAG_INITIAL) {
         abortObject(object, 404, internAtom("Not found"));
     }
     object->age = current_time.tv_sec;
     object->date = current_time.tv_sec;
 
-    object->flags &= ~OBJECT_VALIDATING;
+    object->flags &= ~OBJECT_FLAG_VALIDATING;
     notifyObject(object);
     return 1;
 }
@@ -155,10 +155,10 @@ httpSpecialRequest(ObjectPtr object, int method, int from, int to,
                                       requestor, closure);
     }
 
-    if(!(object->flags & OBJECT_INITIAL)) {
+    if(!(object->flags & OBJECT_FLAG_INITIAL)) {
         privatiseObject(object, 0);
         supersedeObject(object);
-        object->flags &= ~(OBJECT_VALIDATING | OBJECT_INPROGRESS);
+        object->flags &= ~(OBJECT_FLAG_VALIDATING | OBJECT_FLAG_INPROGRESS);
         notifyObject(object);
         return 1;
     }
@@ -171,8 +171,8 @@ httpSpecialRequest(ObjectPtr object, int method, int from, int to,
     object->headers = internAtomN(buffer, hlen);
     object->code = 200;
     object->message = internAtom("Okay");
-    object->flags &= ~OBJECT_INITIAL;
-    object->flags |= OBJECT_DYNAMIC;
+    object->flags &= ~OBJECT_FLAG_INITIAL;
+    object->flags |= OBJECT_FLAG_DYNAMIC;
 
     if(object->key_size == 8 && memcmp(object->key, "/polipo/", 8) == 0) {
         objectPrintf(object, 0,
@@ -290,7 +290,7 @@ httpSpecialRequest(ObjectPtr object, int method, int from, int to,
         abortObject(object, 404, internAtom("Not found"));
     }
 
-    object->flags &= ~OBJECT_VALIDATING;
+    object->flags &= ~OBJECT_FLAG_VALIDATING;
     notifyObject(object);
     return 1;
 }
@@ -360,8 +360,8 @@ httpSpecialClientSideHandler(int status,
     HTTPRequestPtr request = connection->request;
     int push;
 
-    if((request->object->flags & OBJECT_ABORTED) || 
-       !(request->object->flags & OBJECT_INPROGRESS)) {
+    if((request->object->flags & OBJECT_FLAG_ABORTED) || 
+       !(request->object->flags & OBJECT_FLAG_INPROGRESS)) {
         httpClientDiscardBody(connection);
         httpClientError(request, 503, internAtom("Post aborted"));
         return 1;
@@ -427,7 +427,7 @@ httpSpecialDoSideFinish(AtomPtr data, HTTPRequestPtr requestor)
         object->headers = internAtom("\r\nLocation: /polipo/config?");
         object->code = 303;
         object->message = internAtom("Done");
-        object->flags &= ~OBJECT_INITIAL;
+        object->flags &= ~OBJECT_FLAG_INITIAL;
         object->length = 0;
     } else if(matchUrl("/polipo/status", object)) {
         AtomListPtr list = NULL;
@@ -477,7 +477,7 @@ httpSpecialDoSideFinish(AtomPtr data, HTTPRequestPtr requestor)
         object->headers = internAtom("\r\nLocation: /polipo/status?");
         object->code = 303;
         object->message = internAtom("Done");
-        object->flags &= ~OBJECT_INITIAL;
+        object->flags &= ~OBJECT_FLAG_INITIAL;
         object->length = 0;
     } else {
         abortObject(object, 405, internAtom("Method not allowed"));
@@ -499,7 +499,7 @@ fillSpecialObject(ObjectPtr object, void (*fn)(FILE*, char*), void* closure)
     pid_t pid;
     sigset_t ss, old_mask;
 
-    if(object->flags & OBJECT_INPROGRESS)
+    if(object->flags & OBJECT_FLAG_INPROGRESS)
         return;
 
     rc = pipe(filedes);
@@ -577,7 +577,7 @@ fillSpecialObject(ObjectPtr object, void (*fn)(FILE*, char*), void* closure)
                 notifyObject(object);
             }
         }
-        object->flags |= OBJECT_INPROGRESS;
+        object->flags |= OBJECT_FLAG_INPROGRESS;
         retainObject(object);
         request->object = object;
         request->fd = filedes[0];
@@ -616,7 +616,7 @@ specialRequestHandler(int status,
     if(status < 0) {
         kill(request->pid, SIGTERM);
         killed = 1;
-        request->object->flags &= ~OBJECT_INPROGRESS;
+        request->object->flags &= ~OBJECT_FLAG_INPROGRESS;
         abortObject(request->object, 502,
                     internAtomError(-status, "Couldn't read from client"));
         goto done;
@@ -628,7 +628,7 @@ specialRequestHandler(int status,
         if(rc < 0) {
             kill(request->pid, SIGTERM);
             killed = 1;
-            request->object->flags &= ~OBJECT_INPROGRESS;
+            request->object->flags &= ~OBJECT_FLAG_INPROGRESS;
             abortObject(request->object, 503,
                         internAtom("Couldn't add data to connection"));
             goto done;
@@ -636,7 +636,7 @@ specialRequestHandler(int status,
         request->offset += srequest->offset;
     }
     if(status) {
-        request->object->flags &= ~OBJECT_INPROGRESS;
+        request->object->flags &= ~OBJECT_FLAG_INPROGRESS;
         request->object->length = request->object->size;
         goto done;
     }
@@ -646,7 +646,7 @@ specialRequestHandler(int status,
     if(request->object->refcount <= 1) {
         kill(request->pid, SIGTERM);
         killed = 1;
-        request->object->flags &= ~OBJECT_INPROGRESS;
+        request->object->flags &= ~OBJECT_FLAG_INPROGRESS;
         abortObject(request->object, 500, internAtom("Aborted"));
         goto done;
     }
@@ -693,7 +693,7 @@ fillSpecialObject(ObjectPtr object, void (*fn)(FILE*, char*), void* closure)
     char *buf = NULL;
     int rc, len, offset;
 
-    if(object->flags & OBJECT_INPROGRESS)
+    if(object->flags & OBJECT_FLAG_INPROGRESS)
         return;
 
     buf = get_chunk();

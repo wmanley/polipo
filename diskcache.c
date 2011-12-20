@@ -248,7 +248,7 @@ diskEntrySize(ObjectPtr object)
         entry->size =  buf.st_size - entry->body_offset;
     CHECK_ENTRY(entry);
     if(object->length >= 0 && entry->size == object->length)
-        object->flags |= OBJECT_DISK_ENTRY_COMPLETE;
+        object->flags |= OBJECT_FLAG_DISK_ENTRY_COMPLETE;
     return entry->size;
 }
 
@@ -570,7 +570,7 @@ writeHeaders(int fd, int *body_offset_return,
     int buf_is_chunk = 0;
     int bufsize = 0;
 
-    if(object->flags & OBJECT_LOCAL)
+    if(object->flags & OBJECT_FLAG_LOCAL)
         return -1;
 
     if(body_offset > CHUNK_SIZE)
@@ -656,7 +656,7 @@ writeHeaders(int fd, int *body_offset_return,
         goto fail;
     if(object->length >= 0 && 
        rc - body_offset >= object->length)
-        object->flags |= OBJECT_DISK_ENTRY_COMPLETE;
+        object->flags |= OBJECT_FLAG_DISK_ENTRY_COMPLETE;
 
     *body_offset_return = body_offset;
     if(buf_is_chunk)
@@ -798,12 +798,12 @@ validateLocalEntry(ObjectPtr object, int fd,
             return -1;
     }
 
-    if(!(object->flags & OBJECT_INITIAL)) {
+    if(!(object->flags & OBJECT_FLAG_INITIAL)) {
         if(!object->last_modified && !object->etag)
             return -1;
     }
        
-    if(object->flags & OBJECT_INITIAL) {
+    if(object->flags & OBJECT_FLAG_INITIAL) {
         object->length = ss.st_size;
         object->last_modified = ss.st_mtime;
         object->date = current_time.tv_sec;
@@ -824,7 +824,7 @@ validateLocalEntry(ObjectPtr object, int fd,
         object->headers = internAtomN(buf, n);
         if(object->headers == NULL)
             return -1;
-        object->flags &= ~OBJECT_INITIAL;
+        object->flags &= ~OBJECT_FLAG_INITIAL;
     }
 
     if(body_offset_return)
@@ -858,11 +858,11 @@ validateEntry(ObjectPtr object, int fd,
     AtomPtr message;
     int dirty = 0;
 
-    if(object->flags & OBJECT_LOCAL)
+    if(object->flags & OBJECT_FLAG_LOCAL)
         return validateLocalEntry(object, fd,
                                   body_offset_return, offset_return);
 
-    if(!(object->flags & OBJECT_PUBLIC) && (object->flags & OBJECT_INITIAL))
+    if(!(object->flags & OBJECT_FLAG_PUBLIC) && (object->flags & OBJECT_FLAG_INITIAL))
         return 0;
 
     /* get_chunk might trigger object expiry */
@@ -959,7 +959,7 @@ validateEntry(ObjectPtr object, int fd,
         goto invalid;
     }
 
-    if(!(object->flags & OBJECT_INITIAL)) {
+    if(!(object->flags & OBJECT_FLAG_INITIAL)) {
         if((last_modified >= 0) != (object->last_modified >= 0))
             goto invalid;
 
@@ -1047,8 +1047,8 @@ validateEntry(ObjectPtr object, int fd,
     }
     releaseAtom(message);
 
-    if(object->flags & OBJECT_INITIAL) object->via = via;
-    object->flags &= ~OBJECT_INITIAL;
+    if(object->flags & OBJECT_FLAG_INITIAL) object->via = via;
+    object->flags &= ~OBJECT_FLAG_INITIAL;
     if(offset > body_offset) {
         /* We need to make sure we don't invoke object expiry recursively */
         objectSetChunks(object, 1);
@@ -1141,13 +1141,13 @@ makeDiskEntry(ObjectPtr object, int writeable, int create)
     off_t offset = -1;
     int body_offset = -1;
     int rc;
-    int local = (object->flags & OBJECT_LOCAL) != 0;
+    int local = (object->flags & OBJECT_FLAG_LOCAL) != 0;
     int dirty = 0;
 
     if(local && (writeable || create))
         return NULL;
 
-    if(!local && !(object->flags & OBJECT_PUBLIC))
+    if(!local && !(object->flags & OBJECT_FLAG_PUBLIC))
         return NULL;
 
     if(maxDiskCacheEntrySize >= 0) {
@@ -1222,7 +1222,7 @@ makeDiskEntry(ObjectPtr object, int writeable, int create)
         }
 
         if(fd < 0 && create && name_len > 0 && 
-           !(object->flags & OBJECT_INITIAL)) {
+           !(object->flags & OBJECT_FLAG_INITIAL)) {
             isWriteable = 1;
             fd = createFile(buf, diskCacheRoot->length);
             if(fd < 0)
@@ -1391,7 +1391,7 @@ rewriteEntry(ObjectPtr object)
  done:
     CHECK_ENTRY(entry);
     if(object->length >= 0 && entry->size == object->length)
-        object->flags |= OBJECT_DISK_ENTRY_COMPLETE;
+        object->flags |= OBJECT_FLAG_DISK_ENTRY_COMPLETE;
     close(fd);
     if(buf_is_chunk)
         dispose_chunk(buf);
@@ -1425,7 +1425,7 @@ destroyDiskEntry(ObjectPtr object, int d)
     }
 
     if(d) {
-        entry->object->flags &= ~OBJECT_DISK_ENTRY_COMPLETE;
+        entry->object->flags &= ~OBJECT_FLAG_DISK_ENTRY_COMPLETE;
         if(entry->filename) {
             urc = unlink(entry->filename);
             if(urc < 0)
@@ -1494,7 +1494,7 @@ objectFillFromDisk(ObjectPtr object, int offset, int chunks)
     if(object->type != OBJECT_TYPE_HTTP)
         return 0;
 
-    if(object->flags & OBJECT_LINEAR)
+    if(object->flags & OBJECT_FLAG_LINEAR)
         return 0;
 
     if(object->length >= 0) {
@@ -1507,7 +1507,7 @@ objectFillFromDisk(ObjectPtr object, int offset, int chunks)
         return 0;
 
     complete = 1;
-    if(object->flags & OBJECT_INITIAL) {
+    if(object->flags & OBJECT_FLAG_INITIAL) {
         complete = 0;
     } else if((object->length < 0 || object->size < object->length) &&
               object->size < (offset / CHUNK_SIZE + chunks) * CHUNK_SIZE) {
@@ -1654,10 +1654,10 @@ reallyWriteoutToDisk(ObjectPtr object, int upto, int max)
         upto = object->size;
 
     if((object->cache_control & CACHE_CONTROL_FLAG_NO_STORE) || 
-       (object->flags & OBJECT_LOCAL))
+       (object->flags & OBJECT_FLAG_LOCAL))
         return 0;
 
-    if((object->flags & OBJECT_DISK_ENTRY_COMPLETE) && !object->disk_entry)
+    if((object->flags & OBJECT_FLAG_DISK_ENTRY_COMPLETE) && !object->disk_entry)
         return 0;
 
     entry = makeDiskEntry(object, 1, 1);
@@ -1665,7 +1665,7 @@ reallyWriteoutToDisk(ObjectPtr object, int upto, int max)
 
     assert(!entry->local);
 
-    if(object->flags & OBJECT_DISK_ENTRY_COMPLETE)
+    if(object->flags & OBJECT_FLAG_DISK_ENTRY_COMPLETE)
         goto done;
 
     diskEntrySize(object);
@@ -1673,7 +1673,7 @@ reallyWriteoutToDisk(ObjectPtr object, int upto, int max)
         return 0;
 
     if(object->length >= 0 && entry->size >= object->length) {
-        object->flags |= OBJECT_DISK_ENTRY_COMPLETE;
+        object->flags |= OBJECT_FLAG_DISK_ENTRY_COMPLETE;
         goto done;
     }
 
@@ -1747,7 +1747,7 @@ writeoutMetadata(ObjectPtr object)
     int rc;
 
     if((object->cache_control & CACHE_CONTROL_FLAG_NO_STORE) || 
-       (object->flags & OBJECT_LOCAL))
+       (object->flags & OBJECT_FLAG_LOCAL))
         return 0;
     
     entry = makeDiskEntry(object, 1, 0);

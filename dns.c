@@ -332,25 +332,25 @@ do_gethostbyname(char *origname,
         }
     }
 
-    if((object->flags & (OBJECT_INITIAL | OBJECT_INPROGRESS)) ==
-       OBJECT_INITIAL) {
+    if((object->flags & (OBJECT_FLAG_INITIAL | OBJECT_FLAG_INPROGRESS)) ==
+       OBJECT_FLAG_INITIAL) {
         if(dnsUseGethostbyname >= 3)
             rc = really_do_gethostbyname(name, object);
         else
             rc = really_do_dns(name, object);
         if(rc < 0) {
-            assert(!(object->flags & (OBJECT_INITIAL | OBJECT_INPROGRESS)));
+            assert(!(object->flags & (OBJECT_FLAG_INITIAL | OBJECT_FLAG_INPROGRESS)));
             goto fail;
         }
     }
 
     if(dnsUseGethostbyname >= 3)
-        assert(!(object->flags & OBJECT_INITIAL));
+        assert(!(object->flags & OBJECT_FLAG_INITIAL));
 
 #ifndef NO_FANCY_RESOLVER    
-    if(object->flags & OBJECT_INITIAL) {
+    if(object->flags & OBJECT_FLAG_INITIAL) {
         ConditionHandlerPtr chandler;
-        assert(object->flags & OBJECT_INPROGRESS);
+        assert(object->flags & OBJECT_FLAG_INPROGRESS);
         request.object = object;
         chandler = conditionWait(&object->condition, dnsHandler,
                                  sizeof(request), &request);
@@ -507,7 +507,7 @@ really_do_gethostbyname(AtomPtr name, ObjectPtr object)
         object->headers = a;
         object->age = current_time.tv_sec;
         object->expires = current_time.tv_sec + 240;
-        object->flags &= ~(OBJECT_INITIAL | OBJECT_INPROGRESS);
+        object->flags &= ~(OBJECT_FLAG_INITIAL | OBJECT_FLAG_INPROGRESS);
         notifyObject(object);
         return 0;
     }
@@ -551,12 +551,12 @@ really_do_gethostbyname(AtomPtr name, ObjectPtr object)
         object->headers = NULL;
         object->age = current_time.tv_sec;
         object->expires = current_time.tv_sec + dnsNegativeTtl;
-        object->flags &= ~(OBJECT_INITIAL | OBJECT_INPROGRESS);
+        object->flags &= ~(OBJECT_FLAG_INITIAL | OBJECT_FLAG_INPROGRESS);
         notifyObject(object);
         return 0;
     } else if(error) {
         do_log_error(L_ERROR, error, "Getaddrinfo failed");
-        object->flags &= ~OBJECT_INPROGRESS;
+        object->flags &= ~OBJECT_FLAG_INPROGRESS;
         abortObject(object, 404,
                     internAtomError(error, "Getaddrinfo failed"));
         notifyObject(object);
@@ -604,7 +604,7 @@ really_do_gethostbyname(AtomPtr name, ObjectPtr object)
     freeaddrinfo(ai);
     if(i == 0) {
         do_log(L_ERROR, "Getaddrinfo returned no useful addresses\n");
-        object->flags &= ~OBJECT_INPROGRESS;
+        object->flags &= ~OBJECT_FLAG_INPROGRESS;
         abortObject(object, 404,
                     internAtom("Getaddrinfo returned no useful addresses"));
         notifyObject(object);
@@ -616,7 +616,7 @@ really_do_gethostbyname(AtomPtr name, ObjectPtr object)
 
     a = internAtomN(buf, 1 + i * sizeof(HostAddressRec));
     if(a == NULL) {
-        object->flags &= ~OBJECT_INPROGRESS;
+        object->flags &= ~OBJECT_FLAG_INPROGRESS;
         abortObject(object, 501, internAtom("Couldn't allocate address"));
         notifyObject(object);
         return 0;
@@ -624,7 +624,7 @@ really_do_gethostbyname(AtomPtr name, ObjectPtr object)
     object->headers = a;
     object->age = current_time.tv_sec;
     object->expires = current_time.tv_sec + dnsGethostbynameTtl;
-    object->flags &= ~(OBJECT_INITIAL | OBJECT_INPROGRESS);
+    object->flags &= ~(OBJECT_FLAG_INITIAL | OBJECT_FLAG_INPROGRESS);
     notifyObject(object);
     return 0;
 }
@@ -655,29 +655,29 @@ really_do_gethostbyname(AtomPtr name, ObjectPtr object)
             object->headers = NULL;
             object->age = current_time.tv_sec;
             object->expires = current_time.tv_sec + dnsNegativeTtl;
-            object->flags &= ~(OBJECT_INITIAL | OBJECT_INPROGRESS);
-            object->flags &= ~OBJECT_INPROGRESS;
+            object->flags &= ~(OBJECT_FLAG_INITIAL | OBJECT_FLAG_INPROGRESS);
+            object->flags &= ~OBJECT_FLAG_INPROGRESS;
             notifyObject(object);
             return 0;
         } else {
             do_log_error(L_ERROR, error, "Gethostbyname failed");
             abortObject(object, 404, 
                         internAtomError(error, "Gethostbyname failed"));
-            object->flags &= ~OBJECT_INPROGRESS;
+            object->flags &= ~OBJECT_FLAG_INPROGRESS;
             notifyObject(object);
             return 0;
         }
     }
     if(host->h_addrtype != AF_INET) {
         do_log(L_ERROR, "Address is not AF_INET.\n");
-        object->flags &= ~OBJECT_INPROGRESS;
+        object->flags &= ~OBJECT_FLAG_INPROGRESS;
         abortObject(object, 404, internAtom("Address is not AF_INET"));
         notifyObject(object);
         return -1;
     }
     if(host->h_length != sizeof(struct in_addr)) {
         do_log(L_ERROR, "Address size inconsistent.\n");
-        object->flags &= ~OBJECT_INPROGRESS;
+        object->flags &= ~OBJECT_FLAG_INPROGRESS;
         abortObject(object, 404, internAtom("Address size inconsistent"));
         notifyObject(object);
         return 0;
@@ -699,7 +699,7 @@ really_do_gethostbyname(AtomPtr name, ObjectPtr object)
         free(s);
     }
     if(!a) {
-        object->flags &= ~OBJECT_INPROGRESS;
+        object->flags &= ~OBJECT_FLAG_INPROGRESS;
         abortObject(object, 501, internAtom("Couldn't allocate address"));
         notifyObject(object);
         return 0;
@@ -707,7 +707,7 @@ really_do_gethostbyname(AtomPtr name, ObjectPtr object)
     object->headers = a;
     object->age = current_time.tv_sec;
     object->expires = current_time.tv_sec + dnsGethostbynameTtl;
-    object->flags &= ~(OBJECT_INITIAL | OBJECT_INPROGRESS);
+    object->flags &= ~(OBJECT_FLAG_INITIAL | OBJECT_FLAG_INPROGRESS);
     notifyObject(object);
     return 0;
 
@@ -735,7 +735,7 @@ dnsHandler(int status, ConditionHandlerPtr chandler)
     GethostbynameRequestRec request = *(GethostbynameRequestPtr)chandler->data;
     ObjectPtr object = request.object;
 
-    assert(!(object->flags & OBJECT_INPROGRESS));
+    assert(!(object->flags & OBJECT_FLAG_INPROGRESS));
 
     if(object->headers) {
         request.addr = retainAtom(object->headers);
@@ -851,7 +851,7 @@ dnsTimeoutHandler(TimeEventHandlerPtr event)
 
  fail:
     removeQuery(query);
-    object->flags &= ~OBJECT_INPROGRESS;
+    object->flags &= ~OBJECT_FLAG_INPROGRESS;
     if(query->inet4) releaseAtom(query->inet4);
     if(query->inet6) releaseAtom(query->inet6);
     free(query);
@@ -1010,7 +1010,7 @@ really_do_dns(AtomPtr name, ObjectPtr object)
         object->headers = a;
         object->age = current_time.tv_sec;
         object->expires = current_time.tv_sec + 240;
-        object->flags &= ~(OBJECT_INITIAL | OBJECT_INPROGRESS);
+        object->flags &= ~(OBJECT_FLAG_INITIAL | OBJECT_FLAG_INPROGRESS);
         notifyObject(object);
         return 0;
     }
@@ -1052,11 +1052,11 @@ really_do_dns(AtomPtr name, ObjectPtr object)
     }
     insertQuery(query);
 
-    object->flags |= OBJECT_INPROGRESS;
+    object->flags |= OBJECT_FLAG_INPROGRESS;
     rc = sendQuery(query);
     if(rc < 0) {
         if(rc != -EWOULDBLOCK && rc != -EAGAIN && rc != -ENOBUFS) {
-            object->flags &= ~OBJECT_INPROGRESS;
+            object->flags &= ~OBJECT_FLAG_INPROGRESS;
             message = internAtomError(-rc, "Couldn't send DNS query");
             goto remove_fallback;
         }
@@ -1204,7 +1204,7 @@ dnsReplyHandler(int abort, FdEventHandlerPtr event)
     cancelTimeEvent(query->timeout_handler);
     object = query->object;
 
-    if(object->flags & OBJECT_INITIAL) {
+    if(object->flags & OBJECT_FLAG_INITIAL) {
         assert(!object->headers);
         if(cname) {
             assert(query->inet4 == NULL && query->inet6 == NULL);
@@ -1252,7 +1252,7 @@ dnsReplyHandler(int abort, FdEventHandlerPtr event)
             object->expires = MIN(query->ttl4, query->ttl6);
         }
         object->age = current_time.tv_sec;
-        object->flags &= ~(OBJECT_INITIAL | OBJECT_INPROGRESS);
+        object->flags &= ~(OBJECT_FLAG_INITIAL | OBJECT_FLAG_INPROGRESS);
     } else {
         do_log(L_WARN, "DNS object ex nihilo for %s.\n", query->name->string);
     }
@@ -1324,7 +1324,7 @@ dnsGethostbynameFallback(int id, AtomPtr message)
     } else {
         releaseAtom(object->message);
         object->message = message;
-        object->flags &= ~OBJECT_INPROGRESS;
+        object->flags &= ~OBJECT_FLAG_INPROGRESS;
         releaseNotifyObject(object);
     }
     cancelTimeEvent(query->timeout_handler);

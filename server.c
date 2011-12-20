@@ -339,8 +339,8 @@ httpServerAbort(HTTPConnectionPtr connection, int fail,
             httpClientError(request->request, code, retainAtom(message));
         }
         if(fail) {
-            request->object->flags |= OBJECT_FAILED;
-            if(request->object->flags & OBJECT_INITIAL)
+            request->object->flags |= OBJECT_FLAG_FAILED;
+            if(request->object->flags & OBJECT_FLAG_INITIAL)
                 abortObject(request->object, code, retainAtom(message));
             notifyObject(request->object);
         }
@@ -364,8 +364,8 @@ httpServerAbortRequest(HTTPRequestPtr request, int fail,
             httpClientError(requestor, code, retainAtom(message));
         }
         if(fail) {
-            request->object->flags |= OBJECT_FAILED;
-            if(request->object->flags & OBJECT_INITIAL)
+            request->object->flags |= OBJECT_FLAG_FAILED;
+            if(request->object->flags & OBJECT_FLAG_INITIAL)
                 abortObject(request->object, code, retainAtom(message));
             notifyObject(request->object);
         }
@@ -392,7 +392,7 @@ httpMakeServerRequest(char *name, int port, ObjectPtr object,
     HTTPRequestPtr request;
     int rc;
 
-    assert(!(object->flags & OBJECT_INPROGRESS));
+    assert(!(object->flags & OBJECT_FLAG_INPROGRESS));
 
     if(parentHost) {
         server = getServer(parentHost->string, parentPort, 1);
@@ -401,7 +401,7 @@ httpMakeServerRequest(char *name, int port, ObjectPtr object,
     }
     if(server == NULL) return -1;
 
-    object->flags |= OBJECT_INPROGRESS;
+    object->flags |= OBJECT_FLAG_INPROGRESS;
     object->requestor = requestor;
 
     request = httpMakeRequest();
@@ -444,7 +444,7 @@ httpMakeServerRequest(char *name, int port, ObjectPtr object,
         do_log(L_ERROR, "Couldn't queue request.\n");
         request->request = NULL;
         requestor->request = NULL;
-        object->flags &= ~(OBJECT_INPROGRESS | OBJECT_VALIDATING);
+        object->flags &= ~(OBJECT_FLAG_INPROGRESS | OBJECT_FLAG_VALIDATING);
         releaseNotifyObject(object);
         httpDestroyRequest(request);
         return 1;
@@ -672,7 +672,7 @@ httpServerDiscardRequests(HTTPServerPtr server)
         request->next = NULL;
         if(server->request == NULL)
             server->request_last = NULL;
-        request->object->flags &= ~(OBJECT_INPROGRESS | OBJECT_VALIDATING);
+        request->object->flags &= ~(OBJECT_FLAG_INPROGRESS | OBJECT_FLAG_VALIDATING);
         releaseNotifyObject(request->object);
         request->object = NULL;
         httpDestroyRequest(request);
@@ -995,7 +995,7 @@ httpServerDoSide(HTTPConnectionPtr connection)
                     (request->flags & REQUEST_WAIT_CONTINUE) ? 0 : len,
                     httpServerSideHandler2, connection);
         httpServerReply(connection, 0);
-    } else if(request->object->flags & OBJECT_ABORTED) {
+    } else if(request->object->flags & OBJECT_FLAG_ABORTED) {
         if(connection->reqbuf)
             dispose_chunk(connection->reqbuf);
         connection->reqbuf = NULL;
@@ -1082,7 +1082,7 @@ httpServerSideHandlerCommon(int kind, int status,
     HTTPConnectionPtr client = requestor->connection;
     int bodylen;
 
-    assert(request->object->flags & OBJECT_INPROGRESS);
+    assert(request->object->flags & OBJECT_FLAG_INPROGRESS);
 
     if(status) {
         do_log_error(L_ERROR, -status, "Couldn't write to server");
@@ -1214,7 +1214,7 @@ httpServerFinish(HTTPConnectionPtr connection, int s, int offset)
 
         httpDequeueRequest(connection);
         connection->pipelined--;
-        request->object->flags &= ~(OBJECT_INPROGRESS | OBJECT_VALIDATING);
+        request->object->flags &= ~(OBJECT_FLAG_INPROGRESS | OBJECT_FLAG_VALIDATING);
         if(request->request) {
             request->request->request = NULL;
             request->request = NULL;
@@ -1459,10 +1459,10 @@ httpServerRequest(ObjectPtr object, int method, int from, int to,
 
     assert(from >= 0 && (to < 0 || to > from));
     assert(closure == NULL);
-    assert(!(object->flags & OBJECT_LOCAL));
+    assert(!(object->flags & OBJECT_FLAG_LOCAL));
     assert(object->type == OBJECT_TYPE_HTTP);
 
-    if(object->flags & OBJECT_INPROGRESS)
+    if(object->flags & OBJECT_FLAG_INPROGRESS)
         return 1;
 
     if(requestor->flags & REQUEST_REQUESTED)
@@ -1532,7 +1532,7 @@ httpWriteRequest(HTTPConnectionPtr connection, HTTPRequestPtr request,
             }
         }
 
-        if(object->flags & OBJECT_DYNAMIC) {
+        if(object->flags & OBJECT_FLAG_DYNAMIC) {
             from = 0;
             to = -1;
         } else {
@@ -1710,7 +1710,7 @@ httpServerHandler(int status,
     HTTPConnectionPtr connection = srequest->data;
     AtomPtr message;
     
-    assert(connection->request->object->flags & OBJECT_INPROGRESS);
+    assert(connection->request->object->flags & OBJECT_FLAG_INPROGRESS);
 
     if(connection->reqlen == 0) {
         do_log(D_SERVER_REQ, "Writing aborted on 0x%lx\n", 
@@ -1786,7 +1786,7 @@ httpServerReplyHandler(int status,
     int bufsize = 
         (connection->flags & CONN_BIGBUF) ? bigBufferSize : CHUNK_SIZE;
 
-    assert(request->object->flags & OBJECT_INPROGRESS);
+    assert(request->object->flags & OBJECT_FLAG_INPROGRESS);
     if(status < 0) {
         if(connection->serviced >= 1) {
             httpServerRestart(connection);
@@ -1879,7 +1879,7 @@ httpServerHandlerHeaders(int eof,
     int suspectDynamic;
     AtomPtr url = NULL;
 
-    assert(request->object->flags & OBJECT_INPROGRESS);
+    assert(request->object->flags & OBJECT_FLAG_INPROGRESS);
     assert(eof >= 0);
 
     httpSetTimeout(connection, -1);
@@ -2063,10 +2063,10 @@ httpServerHandlerHeaders(int eof,
                    code == 304 ? "not changed":"precondition failed");
             do_log_n(L_ERROR, object->key, object->key_size);
             do_log(L_ERROR, "\n");
-            object->flags |= OBJECT_DYNAMIC;
+            object->flags |= OBJECT_FLAG_DYNAMIC;
             supersede = 1;
         }
-    } else if(!(object->flags & OBJECT_INITIAL)) {
+    } else if(!(object->flags & OBJECT_FLAG_INITIAL)) {
         if((object->last_modified < 0 || last_modified < 0) &&
            (!object->etag || !etag))
             supersede = 1;
@@ -2123,7 +2123,7 @@ httpServerHandlerHeaders(int eof,
         return 1;
     }
 
-    if(object->flags & OBJECT_INITIAL)
+    if(object->flags & OBJECT_FLAG_INITIAL)
         supersede = 0;
 
     if(supersede) {
@@ -2145,7 +2145,7 @@ httpServerHandlerHeaders(int eof,
             return 1;
         }
         if(urlIsLocal(new_object->key, new_object->key_size))
-            new_object->flags |= OBJECT_LOCAL;
+            new_object->flags |= OBJECT_FLAG_LOCAL;
     } else {
         new_object = object;
     }
@@ -2163,17 +2163,17 @@ httpServerHandlerHeaders(int eof,
         (supersede && (old_object->date - date <= 5));
 
     if(suspectDynamic)
-        new_object->flags |= OBJECT_DYNAMIC;
+        new_object->flags |= OBJECT_FLAG_DYNAMIC;
     else if(!supersede)
-        new_object->flags &= ~OBJECT_DYNAMIC;
-    else if(old_object->flags & OBJECT_DYNAMIC)
-        new_object->flags |= OBJECT_DYNAMIC;
+        new_object->flags &= ~OBJECT_FLAG_DYNAMIC;
+    else if(old_object->flags & OBJECT_FLAG_DYNAMIC)
+        new_object->flags |= OBJECT_FLAG_DYNAMIC;
 
     new_object->age = age;
     new_object->cache_control |= cache_control.flags;
     new_object->max_age = cache_control.max_age;
     new_object->s_maxage = cache_control.s_maxage;
-    new_object->flags &= ~OBJECT_FAILED;
+    new_object->flags &= ~OBJECT_FLAG_FAILED;
 
     if(date >= 0)
         new_object->date = date;
@@ -2226,7 +2226,7 @@ httpServerHandlerHeaders(int eof,
         new_object->via = new_via;
     }
 
-    if(new_object->flags & OBJECT_INITIAL) {
+    if(new_object->flags & OBJECT_FLAG_INITIAL) {
         objectPartial(new_object, full_len, headers);
     } else {
         if(new_object->length < 0)
@@ -2241,24 +2241,24 @@ httpServerHandlerHeaders(int eof,
     }
 
     if(new_object != old_object) {
-        if(new_object->flags & OBJECT_INPROGRESS) {
+        if(new_object->flags & OBJECT_FLAG_INPROGRESS) {
             /* Make sure we don't fetch this object two times at the
                same time.  Just drop the connection. */
             releaseObject(new_object);
             httpServerFinish(connection, 1, 0);
             return 1;
         }
-        old_object->flags &= ~OBJECT_VALIDATING;
-        new_object->flags |= OBJECT_INPROGRESS;
+        old_object->flags &= ~OBJECT_FLAG_VALIDATING;
+        new_object->flags |= OBJECT_FLAG_INPROGRESS;
         /* Signal the client side to switch to the new object -- see
            httpClientGetHandler.  If it doesn't, we'll give up on this
            request below. */
-        new_object->flags |= OBJECT_MUTATING;
+        new_object->flags |= OBJECT_FLAG_MUTATING;
         request->can_mutate = new_object;
         notifyObject(old_object);
         request->can_mutate = NULL;
-        new_object->flags &= ~OBJECT_MUTATING;
-        old_object->flags &= ~OBJECT_INPROGRESS;
+        new_object->flags &= ~OBJECT_FLAG_MUTATING;
+        old_object->flags &= ~OBJECT_FLAG_INPROGRESS;
         if(request->object == old_object) {
             if(request->request)
                 request->request->request = NULL;
@@ -2274,8 +2274,8 @@ httpServerHandlerHeaders(int eof,
         objectMetadataChanged(new_object, 0);
     }
 
-    if(object->flags & OBJECT_VALIDATING) {
-        object->flags &= ~OBJECT_VALIDATING;
+    if(object->flags & OBJECT_FLAG_VALIDATING) {
+        object->flags &= ~OBJECT_FLAG_VALIDATING;
         notifyObject(object);
     }
 
@@ -2396,7 +2396,7 @@ httpServerIndirectHandlerCommon(HTTPConnectionPtr connection, int eof)
     HTTPRequestPtr request = connection->request;
 
     assert(eof >= 0);
-    assert(request->object->flags & OBJECT_INPROGRESS);
+    assert(request->object->flags & OBJECT_FLAG_INPROGRESS);
 
     if(connection->len > 0) {
         int rc;
@@ -2461,7 +2461,7 @@ httpServerIndirectHandler(int status,
                           StreamRequestPtr srequest)
 {
     HTTPConnectionPtr connection = srequest->data;
-    assert(connection->request->object->flags & OBJECT_INPROGRESS);
+    assert(connection->request->object->flags & OBJECT_FLAG_INPROGRESS);
 
     httpSetTimeout(connection, -1);
     if(status < 0) {
@@ -2484,7 +2484,7 @@ httpServerReadData(HTTPConnectionPtr connection, int immediate)
     ObjectPtr object = request->object;
     int to = -1;
 
-    assert(object->flags & OBJECT_INPROGRESS);
+    assert(object->flags & OBJECT_FLAG_INPROGRESS);
 
     if(request->request == NULL) {
         httpServerFinish(connection, 1, 0);
@@ -2597,7 +2597,7 @@ httpServerDirectHandlerCommon(int kind, int status,
     int i = connection->offset / CHUNK_SIZE;
     int to, end, end1;
 
-    assert(request->object->flags & OBJECT_INPROGRESS);
+    assert(request->object->flags & OBJECT_FLAG_INPROGRESS);
 
     httpSetTimeout(connection, -1);
 

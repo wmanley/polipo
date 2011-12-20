@@ -899,7 +899,7 @@ httpClientRequestContinue(int forbidden_code, AtomPtr url,
             return 1;
         }
         if(requestfn == httpLocalRequest)
-            request->object->flags |= OBJECT_LOCAL;
+            request->object->flags |= OBJECT_FLAG_LOCAL;
         return httpClientSideRequest(request);
     }
 
@@ -907,7 +907,7 @@ httpClientRequestContinue(int forbidden_code, AtomPtr url,
         do {
             object = makeObject(OBJECT_TYPE_HTTP, url->string, url->length, 0, 0,
                                 requestfn, NULL);
-            if(object && object->flags != OBJECT_INITIAL) {
+            if(object && object->flags != OBJECT_FLAG_INITIAL) {
                 if(!(object->cache_control & CACHE_CONTROL_FLAG_PUBLIC)) {
                     privatiseObject(object, 0);
                     releaseObject(object);
@@ -917,7 +917,7 @@ httpClientRequestContinue(int forbidden_code, AtomPtr url,
             }
         } while(object == NULL);
         if(object)
-            object->flags |= OBJECT_LINEAR;
+            object->flags |= OBJECT_FLAG_LINEAR;
     } else {
         object = findObject(OBJECT_TYPE_HTTP, url->string, url->length);
         if(!object)
@@ -936,7 +936,7 @@ httpClientRequestContinue(int forbidden_code, AtomPtr url,
     }
 
     if(object->request == httpLocalRequest) {
-        object->flags |= OBJECT_LOCAL;
+        object->flags |= OBJECT_FLAG_LOCAL;
     } else {
         if(disableProxy) {
             httpClientDiscardBody(connection);
@@ -1101,8 +1101,8 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
     if(request->error_code) {
         if((request->flags & REQUEST_FORCE_ERROR) || REQUEST_SIDE(request) ||
            request->object == NULL ||
-           (request->object->flags & OBJECT_LOCAL) ||
-           (request->object->flags & OBJECT_ABORTED) ||
+           (request->object->flags & OBJECT_FLAG_LOCAL) ||
+           (request->object->flags & OBJECT_FLAG_ABORTED) ||
            (relaxTransparency < 1 && !proxyOffline)) {
             if(serveNow) {
                 connection->flags |= CONN_WRITER;
@@ -1156,13 +1156,13 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
         }
     }
 
-    if(object->flags & OBJECT_DYNAMIC) {
+    if(object->flags & OBJECT_FLAG_DYNAMIC) {
         request->from = 0;
         request->to = -1;
     }
 
     if(request->method == METHOD_HEAD)
-        haveData = !(request->object->flags & OBJECT_INITIAL);
+        haveData = !(request->object->flags & OBJECT_FLAG_INITIAL);
     else
         haveData = 
             (request->object->length >= 0 && 
@@ -1178,13 +1178,13 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
             objectMustRevalidate(request->object, &request->cache_control);
     else if(request->cache_control.flags & CACHE_CONTROL_FLAG_ONLY_IF_CACHED)
         validate = 0;
-    else if((request->object->flags & OBJECT_FAILED) &&
-            !(object->flags & OBJECT_INPROGRESS) &&
+    else if((request->object->flags & OBJECT_FLAG_FAILED) &&
+            !(object->flags & OBJECT_FLAG_INPROGRESS) &&
             !relaxTransparency)
         validate = 1;
     else if(request->method != METHOD_HEAD &&
             !objectHasData(object, request->from, request->to) &&
-            !(object->flags & OBJECT_INPROGRESS))
+            !(object->flags & OBJECT_FLAG_INPROGRESS))
         validate = 1;
     else if(objectMustRevalidate((relaxTransparency <= 1 ? 
                                   request->object : NULL),
@@ -1206,9 +1206,9 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
         }
     }
 
-    if(!(request->object->flags & OBJECT_VALIDATING) &&
+    if(!(request->object->flags & OBJECT_FLAG_VALIDATING) &&
        ((!validate && haveData) ||
-        (request->object->flags & OBJECT_FAILED))) {
+        (request->object->flags & OBJECT_FLAG_FAILED))) {
         if(serveNow) {
             connection->flags |= CONN_WRITER;
             lockChunk(request->object, request->from / CHUNK_SIZE);
@@ -1219,7 +1219,7 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
     }
 
     if((request->flags & REQUEST_REQUESTED) &&
-       !(request->object->flags & OBJECT_INPROGRESS)) {
+       !(request->object->flags & OBJECT_FLAG_INPROGRESS)) {
         /* This can happen either because the server side ran out of
            memory, or because it is using HEAD validation.  We mark
            the object to be fetched again. */
@@ -1244,7 +1244,7 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
         }
     }
 
-    if(request->object->flags & OBJECT_VALIDATING)
+    if(request->object->flags & OBJECT_FLAG_VALIDATING)
         return 1;
 
     conditional = (haveData && request->method == METHOD_GET);
@@ -1254,7 +1254,7 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
     conditional =
         conditional && !(request->object->cache_control & CACHE_CONTROL_FLAG_MISMATCH);
 
-    request->object->flags |= OBJECT_VALIDATING;
+    request->object->flags |= OBJECT_FLAG_VALIDATING;
     rc = request->object->request(request->object,
                                   conditional ? METHOD_CONDITIONAL_GET : 
                                   request->method,
@@ -1264,8 +1264,8 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
         if(request->chandler)
             unregisterConditionHandler(request->chandler);
         request->chandler = NULL;
-        request->object->flags &= ~OBJECT_VALIDATING;
-        request->object->flags |= OBJECT_FAILED;
+        request->object->flags &= ~OBJECT_FLAG_VALIDATING;
+        request->object->flags |= OBJECT_FLAG_FAILED;
         if(request->error_message)
             releaseAtom(request->error_message);
         request->error_code = 503;
@@ -1326,13 +1326,13 @@ httpClientGetHandler(int status, ConditionHandlerPtr chandler)
     assert(request == connection->request);
 
     if(request->request) {
-        assert(request->object->flags & OBJECT_INPROGRESS);
+        assert(request->object->flags & OBJECT_FLAG_INPROGRESS);
         assert(!request->request->object ||
                request->request->object == request->object);
     }
 
     if(status < 0) {
-        object->flags &= ~OBJECT_VALIDATING; /* for now */
+        object->flags &= ~OBJECT_FLAG_VALIDATING; /* for now */
         if(request->request && request->request->request == request)
             httpServerClientReset(request->request);
         lockChunk(object, request->from / CHUNK_SIZE);
@@ -1346,7 +1346,7 @@ httpClientGetHandler(int status, ConditionHandlerPtr chandler)
         return 1;
     }
 
-    if(object->flags & OBJECT_VALIDATING)
+    if(object->flags & OBJECT_FLAG_VALIDATING)
         return 0;
 
     if(request->error_code) {
@@ -1371,7 +1371,7 @@ httpClientGetHandler(int status, ConditionHandlerPtr chandler)
     }
 
     /* See httpServerHandlerHeaders */
-    if((object->flags & OBJECT_SUPERSEDED) &&
+    if((object->flags & OBJECT_FLAG_SUPERSEDED) &&
        request->request && request->request->can_mutate) {
         ObjectPtr new_object = retainObject(request->request->can_mutate);
         if(object->requestor == request) {
@@ -1398,12 +1398,12 @@ httpClientGetHandler(int status, ConditionHandlerPtr chandler)
         return 1;
     }
 
-    if(object->requestor != request && !(object->flags & OBJECT_ABORTED)) {
+    if(object->requestor != request && !(object->flags & OBJECT_FLAG_ABORTED)) {
         /* Make sure we don't serve an object that is stale for us
            unless we're the requestor. */
-        if((object->flags & (OBJECT_LINEAR | OBJECT_MUTATING)) ||
+        if((object->flags & (OBJECT_FLAG_LINEAR | OBJECT_FLAG_MUTATING)) ||
            objectMustRevalidate(object, &request->cache_control)) {
-           if(object->flags & OBJECT_INPROGRESS)
+           if(object->flags & OBJECT_FLAG_INPROGRESS)
                return 0;
            rc = delayedHttpClientNoticeRequest(request);
            if(rc < 0) {
@@ -1418,10 +1418,10 @@ httpClientGetHandler(int status, ConditionHandlerPtr chandler)
         }
     }
 
-    if(object->flags & (OBJECT_INITIAL | OBJECT_VALIDATING)) {
-        if(object->flags & (OBJECT_INPROGRESS | OBJECT_VALIDATING)) {
+    if(object->flags & (OBJECT_FLAG_INITIAL | OBJECT_FLAG_VALIDATING)) {
+        if(object->flags & (OBJECT_FLAG_INPROGRESS | OBJECT_FLAG_VALIDATING)) {
             return 0;
-        } else if(object->flags & OBJECT_FAILED) {
+        } else if(object->flags & OBJECT_FLAG_FAILED) {
             if(request->error_code)
                 abortObject(object, 
                             request->error_code, 
@@ -1450,7 +1450,7 @@ httpClientGetHandler(int status, ConditionHandlerPtr chandler)
         }
     }
 
-    if(request->object->flags & OBJECT_DYNAMIC) {
+    if(request->object->flags & OBJECT_FLAG_DYNAMIC) {
         if(objectHoleSize(request->object, 0) == 0) {
             request->from = 0;
             request->to = -1;
@@ -1519,8 +1519,8 @@ httpClientSideHandler(int status,
 
     assert(connection->flags & CONN_SIDE_READER);
 
-    if((request->object->flags & OBJECT_ABORTED) || 
-       !(request->object->flags & OBJECT_INPROGRESS)) {
+    if((request->object->flags & OBJECT_FLAG_ABORTED) || 
+       !(request->object->flags & OBJECT_FLAG_INPROGRESS)) {
         code = request->object->code;
         message = retainAtom(request->object->message);
         goto fail;
@@ -1590,8 +1590,8 @@ httpServeObject(HTTPConnectionPtr connection)
     httpSetTimeout(connection, -1);
 
     if((request->error_code && relaxTransparency <= 0) ||
-       object->flags & OBJECT_INITIAL) {
-        object->flags &= ~OBJECT_FAILED;
+       object->flags & OBJECT_FLAG_INITIAL) {
+        object->flags &= ~OBJECT_FLAG_FAILED;
         unlockChunk(object, i);
         if(request->error_code)
             return httpClientRawError(connection,
@@ -1602,8 +1602,8 @@ httpServeObject(HTTPConnectionPtr connection)
                                       500, internAtom("Object vanished."), 0);
     }
 
-    if(!(object->flags & OBJECT_INPROGRESS) && object->code == 0) {
-        if(object->flags & OBJECT_INITIAL) {
+    if(!(object->flags & OBJECT_FLAG_INPROGRESS) && object->code == 0) {
+        if(object->flags & OBJECT_FLAG_INITIAL) {
             unlockChunk(object, i);
             return httpClientRawError(connection, 503,
                                       internAtom("Error message lost"), 0);
@@ -1633,10 +1633,10 @@ httpServeObject(HTTPConnectionPtr connection)
                        (request->method == METHOD_HEAD ||
                         condition_result != CONDITION_MATCH) ? 0 : 1);
 
-    if(((object->flags & OBJECT_LINEAR) &&
+    if(((object->flags & OBJECT_FLAG_LINEAR) &&
         (object->requestor != connection->request)) ||
-       ((object->flags & OBJECT_SUPERSEDED) &&
-        !(object->flags & OBJECT_LINEAR))) {
+       ((object->flags & OBJECT_FLAG_SUPERSEDED) &&
+        !(object->flags & OBJECT_FLAG_LINEAR))) {
         if(request->request) {
             request->request->request = NULL;
             request->request = NULL;
@@ -1657,7 +1657,7 @@ httpServeObject(HTTPConnectionPtr connection)
                                       1);
         }
         if(urlIsLocal(object->key, object->key_size)) {
-            object->flags |= OBJECT_LOCAL;
+            object->flags |= OBJECT_FLAG_LOCAL;
             object->request = httpLocalRequest;
         }
         request->object = object;
@@ -1665,7 +1665,7 @@ httpServeObject(HTTPConnectionPtr connection)
         return httpClientNoticeRequest(request, 1);
     }
 
-    if(object->flags & OBJECT_ABORTED) {
+    if(object->flags & OBJECT_FLAG_ABORTED) {
         unlockChunk(object, i);
         return httpClientNoticeError(request, object->code, 
                                      retainAtom(object->message));
@@ -1742,8 +1742,8 @@ httpServeObject(HTTPConnectionPtr connection)
                   (request->flags & REQUEST_PERSISTENT) ? 
                   "keep-alive" : "close");
 
-    if(!(object->flags & OBJECT_LOCAL)) {
-        if((object->flags & OBJECT_FAILED) && !proxyOffline) {
+    if(!(object->flags & OBJECT_FLAG_LOCAL)) {
+        if((object->flags & OBJECT_FLAG_FAILED) && !proxyOffline) {
             n = snnprintf(connection->buf, n, bufsize,
                           "\r\nWarning: 111 %s:%d Revalidation failed",
                           proxyName->string, proxyPort);
@@ -1752,7 +1752,7 @@ httpServeObject(HTTPConnectionPtr connection)
                               " (%d %s)",
                               request->error_code, 
                               atomString(request->error_message));
-            object->flags &= ~OBJECT_FAILED;
+            object->flags &= ~OBJECT_FLAG_FAILED;
         } else if(proxyOffline && 
                   objectMustRevalidate(object, &request->cache_control)) {
             n = snnprintf(connection->buf, n, bufsize,
@@ -1779,7 +1779,7 @@ httpServeObject(HTTPConnectionPtr connection)
 
     if(request->method == METHOD_HEAD || 
        condition_result == CONDITION_NOT_MODIFIED ||
-       (object->flags & OBJECT_ABORTED)) {
+       (object->flags & OBJECT_FLAG_ABORTED)) {
         len = 0;
     } else {
         if(i < object->numchunks) {
@@ -1880,7 +1880,7 @@ httpServeChunk(HTTPConnectionPtr connection)
     int to, len, len2, end;
     int rc;
 
-    if(object->flags & OBJECT_ABORTED)
+    if(object->flags & OBJECT_FLAG_ABORTED)
         goto fail_no_unlock;
 
     if(object->length >= 0 && request->to >= 0)
@@ -1935,8 +1935,8 @@ httpServeChunk(HTTPConnectionPtr connection)
                     goto fail;
                 }
             }
-            if(!(object->flags & OBJECT_INPROGRESS)) {
-                if(object->flags & OBJECT_SUPERSEDED) {
+            if(!(object->flags & OBJECT_FLAG_INPROGRESS)) {
+                if(object->flags & OBJECT_FLAG_SUPERSEDED) {
                     goto fail;
                 }
                 if(REQUEST_SIDE(request)) goto fail;
@@ -1970,7 +1970,7 @@ httpServeChunk(HTTPConnectionPtr connection)
         else
             end = 0;
         /* Prefetch */
-        if(!(object->flags & OBJECT_INPROGRESS) && !REQUEST_SIDE(request)) {
+        if(!(object->flags & OBJECT_FLAG_INPROGRESS) && !REQUEST_SIDE(request)) {
             if(object->chunks[i].size < CHUNK_SIZE &&
                to >= 0 && connection->offset + len + 1 < to)
                 object->request(object, request->method,
@@ -2052,7 +2052,7 @@ httpServeObjectHandler(int status, ConditionHandlerPtr chandler)
 
     unlockChunk(request->object, connection->offset / CHUNK_SIZE);
 
-    if((request->object->flags & OBJECT_ABORTED) || status < 0) {
+    if((request->object->flags & OBJECT_FLAG_ABORTED) || status < 0) {
         shutdown(connection->fd, 1);
         httpSetTimeout(connection, 10);
         /* httpServeChunk will take care of the error. */
@@ -2116,7 +2116,7 @@ httpServeObjectStreamHandlerCommon(int kind, int status,
     }
     request->flags &= ~REQUEST_REQUESTED;
 
-    if(request->object->flags & OBJECT_ABORTED) {
+    if(request->object->flags & OBJECT_FLAG_ABORTED) {
         httpClientFinish(connection, 1);
         return 1;
     }

@@ -327,10 +327,10 @@ httpWriteObjectHeaders(char *buf, int offset, int len,
     if(object->etag) {
         n = snnprintf(buf, n, len, "\r\nETag: \"%s\"", object->etag);
     }
-    if((object->flags & OBJECT_LOCAL) || object->date >= 0) {
+    if((object->flags & OBJECT_FLAG_LOCAL) || object->date >= 0) {
         n = snnprintf(buf, n, len, "\r\nDate: ");
         n = format_time(buf, n, len, 
-                        (object->flags & OBJECT_LOCAL) ?
+                        (object->flags & OBJECT_FLAG_LOCAL) ?
                         current_time.tv_sec : object->date);
         if(n < 0)
             goto fail;
@@ -800,7 +800,7 @@ httpCondition(ObjectPtr object, HTTPConditionPtr condition)
 {
     int rc = CONDITION_MATCH;
 
-    assert(!(object->flags & OBJECT_INITIAL));
+    assert(!(object->flags & OBJECT_FLAG_INITIAL));
 
     if(!condition) return CONDITION_MATCH;
 
@@ -1010,7 +1010,7 @@ httpTweakCachability(ObjectPtr object)
 
     if((object->cache_control & CACHE_CONTROL_FLAG_AUTHORIZATION) &&
        !(object->cache_control & CACHE_CONTROL_FLAG_PUBLIC))
-        object->cache_control |= (CACHE_CONTROL_FLAG_NO_HIDDEN | OBJECT_LINEAR);
+        object->cache_control |= (CACHE_CONTROL_FLAG_NO_HIDDEN | OBJECT_FLAG_LINEAR);
 
     /* This is not required by RFC 2616 -- but see RFC 3143 2.1.1.  We
        manically avoid caching replies that we don't know how to
@@ -1022,7 +1022,7 @@ httpTweakCachability(ObjectPtr object)
        code != 304 && code != 307 &&
        code != 403 && code != 404 && code != 405 && code != 416) {
         object->cache_control |=
-            (CACHE_CONTROL_FLAG_NO_HIDDEN | CACHE_CONTROL_FLAG_MISMATCH | OBJECT_LINEAR);
+            (CACHE_CONTROL_FLAG_NO_HIDDEN | CACHE_CONTROL_FLAG_MISMATCH | OBJECT_FLAG_LINEAR);
     } else if(code != 200 && code != 206 &&
               code != 300 && code != 301 && code != 304 &&
               code != 410) {

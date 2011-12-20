@@ -204,7 +204,7 @@ makeObject(enum ObjectType type, const void *key, int key_size, int public,
     }
     memcpy(object->key, key, key_size);
     object->key_size = key_size;
-    object->flags = (public?OBJECT_PUBLIC:0) | OBJECT_INITIAL;
+    object->flags = (public?OBJECT_FLAG_PUBLIC:0) | OBJECT_FLAG_INITIAL;
     if(public) {
         h = hash(object->type, object->key, object->key_size, 
                  log2ObjectHashTableSize);
@@ -246,7 +246,7 @@ makeObject(enum ObjectType type, const void *key, int key_size, int public,
     object->size = 0;
     object->requestor = NULL;
     object->disk_entry = NULL;
-    if(object->flags & OBJECT_PUBLIC)
+    if(object->flags & OBJECT_FLAG_PUBLIC)
         publicObjectCount++;
     else
         privateObjectCount++;
@@ -263,7 +263,7 @@ objectMetadataChanged(ObjectPtr object, int revalidate)
     if(revalidate) {
         revalidateDiskEntry(object);
     } else {
-        object->flags &= ~OBJECT_DISK_ENTRY_COMPLETE;
+        object->flags &= ~OBJECT_FLAG_DISK_ENTRY_COMPLETE;
         dirtyDiskEntry(object);
     }
     return;
@@ -286,8 +286,8 @@ releaseObject(ObjectPtr object)
     object->refcount--;
     if(object->refcount == 0) {
         assert(!object->condition.handlers && 
-               !(object->flags & OBJECT_INPROGRESS));
-        if(!(object->flags & OBJECT_PUBLIC))
+               !(object->flags & OBJECT_FLAG_INPROGRESS));
+        if(!(object->flags & OBJECT_FLAG_PUBLIC))
             destroyObject(object);
     }
 }
@@ -302,8 +302,8 @@ releaseNotifyObject(ObjectPtr object)
         notifyObject(object);
     } else {
         assert(!object->condition.handlers && 
-               !(object->flags & OBJECT_INPROGRESS));
-        if(!(object->flags & OBJECT_PUBLIC))
+               !(object->flags & OBJECT_FLAG_INPROGRESS));
+        if(!(object->flags & OBJECT_FLAG_PUBLIC))
             destroyObject(object);
     }
 }
@@ -381,7 +381,7 @@ objectPartial(ObjectPtr object, int length, struct _Atom *headers)
     if(length >= 0)
         object->length = length;
 
-    object->flags &= ~OBJECT_INITIAL;
+    object->flags &= ~OBJECT_FLAG_INITIAL;
     revalidateDiskEntry(object);
     notifyObject(object);
     return object;
@@ -491,7 +491,7 @@ objectAddData(ObjectPtr object, const char *data, int offset, int len)
         }
     }
             
-    object->flags &= ~OBJECT_FAILED;
+    object->flags &= ~OBJECT_FLAG_FAILED;
 
     if(offset + len >= object->numchunks * CHUNK_SIZE) {
         rc = objectSetChunks(object, (offset + len - 1) / CHUNK_SIZE + 1);
@@ -621,7 +621,7 @@ objectHasData(ObjectPtr object, int from, int to)
     return 2;
 
  disk:
-    if(object->flags & OBJECT_DISK_ENTRY_COMPLETE)
+    if(object->flags & OBJECT_FLAG_DISK_ENTRY_COMPLETE)
         return 1;
 
     if(diskEntrySize(object) >= upto)
@@ -637,12 +637,12 @@ destroyObject(ObjectPtr object)
 
     assert(object->refcount == 0 && !object->requestor);
     assert(!object->condition.handlers && 
-           (object->flags & OBJECT_INPROGRESS) == 0);
+           (object->flags & OBJECT_FLAG_INPROGRESS) == 0);
 
     if(object->disk_entry)
         destroyDiskEntry(object, 0);
 
-    if(object->flags & OBJECT_PUBLIC) {
+    if(object->flags & OBJECT_FLAG_PUBLIC) {
         privatiseObject(object, 0);
     } else {
         object->type = OBJECT_TYPE_INVALID;
@@ -668,15 +668,15 @@ void
 privatiseObject(ObjectPtr object, int linear) 
 {
     int i, h;
-    if(!(object->flags & OBJECT_PUBLIC)) {
+    if(!(object->flags & OBJECT_FLAG_PUBLIC)) {
         if(linear)
-            object->flags |= OBJECT_LINEAR;
+            object->flags |= OBJECT_FLAG_LINEAR;
         return;
     }
 
     if(object->disk_entry)
         destroyDiskEntry(object, 0);
-    object->flags &= ~OBJECT_PUBLIC;
+    object->flags &= ~OBJECT_FLAG_PUBLIC;
 
     for(i = 0; i < object->numchunks; i++) {
         if(object->chunks[i].locked)
@@ -711,7 +711,7 @@ privatiseObject(ObjectPtr object, int linear)
         destroyObject(object);
     else {
         if(linear)
-            object->flags |= OBJECT_LINEAR;
+            object->flags |= OBJECT_FLAG_LINEAR;
     }
 }
 
@@ -722,8 +722,8 @@ abortObject(ObjectPtr object, int code, AtomPtr message)
 
     assert(code != 0);
 
-    object->flags &= ~(OBJECT_INITIAL | OBJECT_VALIDATING);
-    object->flags |= OBJECT_ABORTED;
+    object->flags &= ~(OBJECT_FLAG_INITIAL | OBJECT_FLAG_VALIDATING);
+    object->flags |= OBJECT_FLAG_ABORTED;
     object->code = code;
     if(object->message) releaseAtom(object->message);
     object->message = message;
@@ -751,7 +751,7 @@ abortObject(ObjectPtr object, int code, AtomPtr message)
 void 
 supersedeObject(ObjectPtr object)
 {
-    object->flags |= OBJECT_SUPERSEDED;
+    object->flags |= OBJECT_FLAG_SUPERSEDED;
     destroyDiskEntry(object, 1);
     privatiseObject(object, 0);
     notifyObject(object);
@@ -821,7 +821,7 @@ discardObjects(int all, int force)
         object = object_list_end;
         while(object && 
               (all || force || used_chunks >= CHUNKS(chunkLowMark))) {
-            if(force || ((object->flags & OBJECT_PUBLIC) &&
+            if(force || ((object->flags & OBJECT_FLAG_PUBLIC) &&
                          object->numchunks > CHUNKS(chunkLowMark) / 4)) {
                 int j;
                 for(j = 0; j < object->numchunks; j++) {
@@ -870,7 +870,7 @@ discardObjects(int all, int force)
             }
             while(object && 
                   (force || used_chunks > CHUNKS(chunkCriticalMark))) {
-                if(force || (object->flags & OBJECT_PUBLIC)) {
+                if(force || (object->flags & OBJECT_FLAG_PUBLIC)) {
                     int j;
                     for(j = object->numchunks - 1; j >= 0; j--) {
                         if(object->chunks[j].locked)
@@ -927,7 +927,7 @@ objectIsStale(ObjectPtr object, CacheControlPtr cache_control)
     int max_age, s_maxage;
     time_t date;
 
-    if(object->flags & OBJECT_INITIAL)
+    if(object->flags & OBJECT_FLAG_INITIAL)
         return 0;
 
     if(object->date >= 0)

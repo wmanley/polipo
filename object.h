@@ -108,30 +108,32 @@ extern int publicObjectLowMark, objectHighMark;
 extern int log2ObjectHashTableSize;
 
 /* object->flags */
-/* object is public */
-#define OBJECT_PUBLIC 1
-/* object hasn't got any headers yet */
-#define OBJECT_INITIAL 2
-/* a server connection is already taking care of the object */
-#define OBJECT_INPROGRESS 4
-/* the object has been superseded -- don't try to fetch it */
-#define OBJECT_SUPERSEDED 8
-/* the object is private and aditionally can only be used by its requestor */
-#define OBJECT_LINEAR 16
-/* the object is currently being validated */
-#define OBJECT_VALIDATING 32
-/* object has been aborted */
-#define OBJECT_ABORTED 64
-/* last object request was a failure */
-#define OBJECT_FAILED 128
-/* Object is a local file */
-#define OBJECT_LOCAL 256
-/* The object's data has been entirely written out to disk */
-#define OBJECT_DISK_ENTRY_COMPLETE 512
-/* The object is suspected to be dynamic -- don't PMM */
-#define OBJECT_DYNAMIC 1024
-/* Used for synchronisation between client and server. */
-#define OBJECT_MUTATING 2048
+enum {
+    /* object is public */
+    OBJECT_FLAG_PUBLIC = 1,
+    /* object hasn't got any headers yet */
+    OBJECT_FLAG_INITIAL = 1 << 1,
+    /* a server connection is already taking care of the object */
+    OBJECT_FLAG_INPROGRESS = 1 << 2,
+    /* the object has been superseded -- don't try to fetch it */
+    OBJECT_FLAG_SUPERSEDED = 1 << 3,
+    /* the object is private and aditionally can only be used by its requestor */
+    OBJECT_FLAG_LINEAR = 1 << 4,
+    /* the object is currently being validated */
+    OBJECT_FLAG_VALIDATING = 1 << 5,
+    /* object has been aborted */
+    OBJECT_FLAG_ABORTED = 1 << 6,
+    /* last object request was a failure */
+    OBJECT_FLAG_FAILED = 1 << 7,
+    /* Object is a local file */
+    OBJECT_FLAG_LOCAL = 1 << 8,
+    /* The object's data has been entirely written out to disk */
+    OBJECT_FLAG_DISK_ENTRY_COMPLETE = 1 << 9,
+    /* The object is suspected to be dynamic -- don't PMM */
+    OBJECT_FLAG_DYNAMIC = 1 << 10,
+    /* Used for synchronisation between client and server. */
+    OBJECT_FLAG_MUTATING = 1 << 11,
+};
 
 /* object->cache_control and connection->cache_control */
 /* RFC 2616 14.9 */
