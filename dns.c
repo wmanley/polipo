@@ -313,13 +313,13 @@ do_gethostbyname(char *origname,
     request.handler = handler;
     request.data = data;
 
-    object = findObject(OBJECT_DNS, name->string, name->length);
+    object = findObject(OBJECT_TYPE_DNS, name->string, name->length);
     if(object == NULL || objectMustRevalidate(object, NULL)) {
         if(object) {
             privatiseObject(object, 0);
             releaseObject(object);
         }
-        object = makeObject(OBJECT_DNS, name->string, name->length, 1, 0,
+        object = makeObject(OBJECT_TYPE_DNS, name->string, name->length, 1, 0,
                             NULL, NULL);
         if(object == NULL) {
             request.error_message = internAtom("Couldn't allocate object");
@@ -1306,7 +1306,7 @@ dnsGethostbynameFallback(int id, AtomPtr message)
             inFlightDnsQueriesLast = NULL;
     }
 
-    object = makeObject(OBJECT_DNS, query->name->string, query->name->length,
+    object = makeObject(OBJECT_TYPE_DNS, query->name->string, query->name->length,
                         1, 0, NULL, NULL);
     if(!object) {
         do_log(L_ERROR, "Couldn't make DNS object.\n");

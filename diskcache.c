@@ -1491,7 +1491,7 @@ objectFillFromDisk(ObjectPtr object, int offset, int chunks)
     int i, j, k;
     int complete;
 
-    if(object->type != OBJECT_HTTP)
+    if(object->type != OBJECT_TYPE_HTTP)
         return 0;
 
     if(object->flags & OBJECT_LINEAR)

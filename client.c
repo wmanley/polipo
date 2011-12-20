@@ -884,13 +884,13 @@ httpClientRequestContinue(int forbidden_code, AtomPtr url,
 
     if(request->method == METHOD_POST || request->method == METHOD_PUT) {
         do {
-            object = findObject(OBJECT_HTTP, url->string, url->length);
+            object = findObject(OBJECT_TYPE_HTTP, url->string, url->length);
             if(object) {
                 privatiseObject(object, 0);
                 releaseObject(object);
             }
         } while(object);
-        request->object = makeObject(OBJECT_HTTP, url->string, url->length,
+        request->object = makeObject(OBJECT_TYPE_HTTP, url->string, url->length,
                                      0, 0, requestfn, NULL);
         if(request->object == NULL) {
             httpClientDiscardBody(connection);
@@ -905,7 +905,7 @@ httpClientRequestContinue(int forbidden_code, AtomPtr url,
 
     if(request->cache_control.flags & CACHE_CONTROL_FLAG_AUTHORIZATION) {
         do {
-            object = makeObject(OBJECT_HTTP, url->string, url->length, 0, 0,
+            object = makeObject(OBJECT_TYPE_HTTP, url->string, url->length, 0, 0,
                                 requestfn, NULL);
             if(object && object->flags != OBJECT_INITIAL) {
                 if(!(object->cache_control & CACHE_CONTROL_FLAG_PUBLIC)) {
@@ -919,9 +919,9 @@ httpClientRequestContinue(int forbidden_code, AtomPtr url,
         if(object)
             object->flags |= OBJECT_LINEAR;
     } else {
-        object = findObject(OBJECT_HTTP, url->string, url->length);
+        object = findObject(OBJECT_TYPE_HTTP, url->string, url->length);
         if(!object)
-            object = makeObject(OBJECT_HTTP, url->string, url->length, 1, 1,
+            object = makeObject(OBJECT_TYPE_HTTP, url->string, url->length, 1, 1,
                                 requestfn, NULL);
     }
     releaseAtom(url);
@@ -1642,7 +1642,7 @@ httpServeObject(HTTPConnectionPtr connection)
             request->request = NULL;
             request->object->requestor = NULL;
         }
-        object = makeObject(OBJECT_HTTP,
+        object = makeObject(OBJECT_TYPE_HTTP,
                             object->key, object->key_size, 1, 0,
                             object->request, NULL);
         if(request->object->requestor == request)

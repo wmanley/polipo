@@ -123,7 +123,7 @@ initObject()
 }
 
 ObjectPtr
-findObject(int type, const void *key, int key_size)
+findObject(enum ObjectType type, const void *key, int key_size)
 {
     int h;
     ObjectPtr object;
@@ -158,8 +158,8 @@ findObject(int type, const void *key, int key_size)
 }
 
 ObjectPtr
-makeObject(int type, const void *key, int key_size, int public, int fromdisk,
-           RequestFunction request, void* request_closure)
+makeObject(enum ObjectType type, const void *key, int key_size, int public,
+           int fromdisk, RequestFunction request, void* request_closure)
 {
     ObjectPtr object;
     int h;
@@ -645,7 +645,7 @@ destroyObject(ObjectPtr object)
     if(object->flags & OBJECT_PUBLIC) {
         privatiseObject(object, 0);
     } else {
-        object->type = -1;
+        object->type = OBJECT_TYPE_INVALID;
         if(object->message) releaseAtom(object->message);
         if(object->key) free(object->key);
         if(object->headers) releaseAtom(object->headers);

@@ -1460,7 +1460,7 @@ httpServerRequest(ObjectPtr object, int method, int from, int to,
     assert(from >= 0 && (to < 0 || to > from));
     assert(closure == NULL);
     assert(!(object->flags & OBJECT_LOCAL));
-    assert(object->type == OBJECT_HTTP);
+    assert(object->type == OBJECT_TYPE_HTTP);
 
     if(object->flags & OBJECT_INPROGRESS)
         return 1;

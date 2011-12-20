@@ -45,9 +45,16 @@ struct _Object;
 typedef int (*RequestFunction)(struct _Object *, int, int, int,
                                struct _HTTPRequest*, void*);
 
+/* object->type */
+enum ObjectType {
+    OBJECT_TYPE_INVALID = -1,
+    OBJECT_TYPE_HTTP = 1,
+    OBJECT_TYPE_DNS = 2
+};
+
 typedef struct _Object {
     short refcount;
-    unsigned char type;
+    enum ObjectType type;
     RequestFunction request;
     void *request_closure;
     void *key;
@@ -99,10 +106,6 @@ extern const time_t time_t_max;
 extern int publicObjectLowMark, objectHighMark;
 
 extern int log2ObjectHashTableSize;
-
-/* object->type */
-#define OBJECT_HTTP 1
-#define OBJECT_DNS 2
 
 /* object->flags */
 /* object is public */
@@ -160,7 +163,7 @@ struct _HTTPRequest;
 void preinitObject(void);
 void initObject(void);
 ObjectPtr findObject(int type, const void *key, int key_size);
-ObjectPtr makeObject(int type, const void *key, int key_size,
+ObjectPtr makeObject(enum ObjectType type, const void *key, int key_size,
                      int public, int fromdisk,
                      int (*request)(ObjectPtr, int, int, int, 
                                     struct _HTTPRequest*, void*), void*);
