@@ -1009,8 +1009,10 @@ httpTweakCachability(ObjectPtr object)
     int code = object->code;
 
     if((object->cache_control & CACHE_CONTROL_FLAG_AUTHORIZATION) &&
-       !(object->cache_control & CACHE_CONTROL_FLAG_PUBLIC))
-        object->cache_control |= (CACHE_CONTROL_FLAG_NO_HIDDEN | OBJECT_FLAG_LINEAR);
+       !(object->cache_control & CACHE_CONTROL_FLAG_PUBLIC)) {
+        object->cache_control |= CACHE_CONTROL_FLAG_NO_HIDDEN;
+        object->flags |= OBJECT_FLAG_LINEAR;
+    }
 
     /* This is not required by RFC 2616 -- but see RFC 3143 2.1.1.  We
        manically avoid caching replies that we don't know how to
@@ -1022,7 +1024,8 @@ httpTweakCachability(ObjectPtr object)
        code != 304 && code != 307 &&
        code != 403 && code != 404 && code != 405 && code != 416) {
         object->cache_control |=
-            (CACHE_CONTROL_FLAG_NO_HIDDEN | CACHE_CONTROL_FLAG_MISMATCH | OBJECT_FLAG_LINEAR);
+            (CACHE_CONTROL_FLAG_NO_HIDDEN | CACHE_CONTROL_FLAG_MISMATCH);
+        object->flags |= OBJECT_FLAG_LINEAR;
     } else if(code != 200 && code != 206 &&
               code != 300 && code != 301 && code != 304 &&
               code != 410) {
