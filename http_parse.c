@@ -1049,34 +1049,34 @@ httpParseHeaders(int client, AtomPtr url,
             while(1) {
                 if(j < 0) {
                     do_log(L_WARN, "Couldn't parse Cache-Control.\n");
-                    cache_control.flags |= CACHE_NO;
+                    cache_control.flags |= CACHE_CONTROL_FLAG_NO_CACHE;
                     break;
                 }
                 if(token_compare(buf, token_start, token_end, "no-cache")) {
-                    cache_control.flags |= CACHE_NO;
+                    cache_control.flags |= CACHE_CONTROL_FLAG_NO_CACHE;
                 } else if(token_compare(buf, token_start, token_end,
                                         "public")) {
-                    cache_control.flags |= CACHE_PUBLIC;
+                    cache_control.flags |= CACHE_CONTROL_FLAG_PUBLIC;
                 } else if(token_compare(buf, token_start, token_end, 
                                         "private")) {
-                    cache_control.flags |= CACHE_PRIVATE;
+                    cache_control.flags |= CACHE_CONTROL_FLAG_PRIVATE;
                 } else if(token_compare(buf, token_start, token_end, 
                                         "no-store")) {
-                    cache_control.flags |= CACHE_NO_STORE;
+                    cache_control.flags |= CACHE_CONTROL_FLAG_NO_STORE;
                 } else if(token_compare(buf, token_start, token_end, 
                                         "no-transform")) {
-                    cache_control.flags |= CACHE_NO_TRANSFORM;
+                    cache_control.flags |= CACHE_CONTROL_FLAG_NO_TRANSFORM;
                 } else if(token_compare(buf, token_start, token_end,
                                         "must-revalidate") ||
                           token_compare(buf, token_start, token_end,
                                         "must-validate")) { /* losers */
-                    cache_control.flags |= CACHE_MUST_REVALIDATE;
+                    cache_control.flags |= CACHE_CONTROL_FLAG_MUST_REVALIDATE;
                 } else if(token_compare(buf, token_start, token_end, 
                                         "proxy-revalidate")) {
-                    cache_control.flags |= CACHE_PROXY_REVALIDATE;
+                    cache_control.flags |= CACHE_CONTROL_FLAG_PROXY_REVALIDATE;
                 } else if(token_compare(buf, token_start, token_end,
                                         "only-if-cached")) {
-                    cache_control.flags |= CACHE_ONLY_IF_CACHED;
+                    cache_control.flags |= CACHE_CONTROL_FLAG_ONLY_IF_CACHED;
                 } else if(token_compare(buf, token_start, token_end,
                                         "max-age") ||
                           token_compare(buf, token_start, token_end,
@@ -1226,9 +1226,9 @@ httpParseHeaders(int client, AtomPtr url,
                              buf + value_start, value_end - value_start);
                     do_log(L_VARY, ").\n");
                 }
-                cache_control.flags |= CACHE_VARY;
+                cache_control.flags |= CACHE_CONTROL_FLAG_VARY;
             } else if(name == atomAuthorization) {
-                cache_control.flags |= CACHE_AUTHORIZATION;
+                cache_control.flags |= CACHE_CONTROL_FLAG_AUTHORIZATION;
             } 
 
             if(name == atomPragma) {
@@ -1244,12 +1244,12 @@ httpParseHeaders(int client, AtomPtr url,
                     while(1) {
                         if(j < 0) {
                             do_log(L_WARN, "Couldn't parse Pragma.\n");
-                            cache_control.flags |= CACHE_NO;
+                            cache_control.flags |= CACHE_CONTROL_FLAG_NO_CACHE;
                             break;
                         }
                         if(token_compare(buf, token_start, token_end,
                                          "no-cache"))
-                            cache_control.flags = CACHE_NO;
+                            cache_control.flags = CACHE_CONTROL_FLAG_NO_CACHE;
                         if(end)
                             break;
                         j = getNextTokenInList(buf, j, &token_start, &token_end,
@@ -1260,7 +1260,7 @@ httpParseHeaders(int client, AtomPtr url,
             if(!client &&
                (name == atomSetCookie || 
                 name == atomCookie || name == atomCookie2))
-                cache_control.flags |= CACHE_COOKIE;
+                cache_control.flags |= CACHE_CONTROL_FLAG_COOKIE;
 
             if(hbuf) {
                 if(name != atomConnection && name != atomHost &&

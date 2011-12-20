@@ -986,8 +986,8 @@ objectIsStale(ObjectPtr object, CacheControlPtr cache_control)
             stale = MIN(stale, object->age + maxNoModifiedAge);
     }
 
-    if(!(flags & CACHE_MUST_REVALIDATE) &&
-       !(cacheIsShared && (flags & CACHE_PROXY_REVALIDATE))) {
+    if(!(flags & CACHE_CONTROL_FLAG_MUST_REVALIDATE) &&
+       !(cacheIsShared && (flags & CACHE_CONTROL_FLAG_PROXY_REVALIDATE))) {
         /* Client side can relax transparency */
         if(cache_control->min_fresh >= 0) {
             if(cache_control->max_stale >= 0)
@@ -1015,16 +1015,16 @@ objectMustRevalidate(ObjectPtr object, CacheControlPtr cache_control)
     else
         flags = cache_control->flags;
     
-    if(flags & (CACHE_NO | CACHE_NO_HIDDEN | CACHE_NO_STORE))
+    if(flags & (CACHE_CONTROL_FLAG_NO_CACHE | CACHE_CONTROL_FLAG_NO_HIDDEN | CACHE_CONTROL_FLAG_NO_STORE))
         return 1;
 
-    if(cacheIsShared && (flags & CACHE_PRIVATE))
+    if(cacheIsShared && (flags & CACHE_CONTROL_FLAG_PRIVATE))
         return 1;
 
-    if(!mindlesslyCacheVary && (flags & CACHE_VARY))
+    if(!mindlesslyCacheVary && (flags & CACHE_CONTROL_FLAG_VARY))
         return 1;
 
-    if(dontCacheCookies && (flags & CACHE_COOKIE))
+    if(dontCacheCookies && (flags & CACHE_CONTROL_FLAG_COOKIE))
         return 1;
 
     if(object)

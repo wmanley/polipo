@@ -132,33 +132,29 @@ extern int log2ObjectHashTableSize;
 
 /* object->cache_control and connection->cache_control */
 /* RFC 2616 14.9 */
-/* Non-standard: like no-cache, but kept internally */
-#define CACHE_NO_HIDDEN 1
-/* no-cache */
-#define CACHE_NO 2
-/* public */
-#define CACHE_PUBLIC 4
-/* private */
-#define CACHE_PRIVATE 8
-/* no-store */
-#define CACHE_NO_STORE 16
-/* no-transform */
-#define CACHE_NO_TRANSFORM 32
-/* must-revalidate */
-#define CACHE_MUST_REVALIDATE 64
-/* proxy-revalidate */
-#define CACHE_PROXY_REVALIDATE 128
-/* only-if-cached */
-#define CACHE_ONLY_IF_CACHED 256
-/* set if Vary header; treated as no-cache */
-#define CACHE_VARY 512
-/* set if Authorization header; treated specially */
-#define CACHE_AUTHORIZATION 1024
-/* set if cookie */
-#define CACHE_COOKIE 2048
-/* set if this object should never be combined with another resource */
-#define CACHE_MISMATCH 4096
+enum {
+    /* Non-standard: like no-cache, but kept internally */
+    CACHE_CONTROL_FLAG_NO_HIDDEN = 1,
 
+    /* Directives from RFC 2626 Section 14.9: */
+    CACHE_CONTROL_FLAG_NO_CACHE = 1 << 1, /* no-cache */
+    CACHE_CONTROL_FLAG_PUBLIC = 1 << 2, /* public */
+    CACHE_CONTROL_FLAG_PRIVATE = 1 << 3, /* private */
+    CACHE_CONTROL_FLAG_NO_STORE = 1 << 4, /* no-store */
+    CACHE_CONTROL_FLAG_NO_TRANSFORM = 1 << 5, /* no-transform */
+    CACHE_CONTROL_FLAG_MUST_REVALIDATE = 1 << 6, /* must-revalidate */
+    CACHE_CONTROL_FLAG_PROXY_REVALIDATE = 1 << 7, /* proxy-revalidate */
+    CACHE_CONTROL_FLAG_ONLY_IF_CACHED = 1 << 8, /* only-if-cached */
+
+    /* set if Vary header; treated as no-cache */
+    CACHE_CONTROL_FLAG_VARY = 1 << 9,
+    /* set if Authorization header; treated specially */
+    CACHE_CONTROL_FLAG_AUTHORIZATION = 1 << 10,
+    /* set if cookie */
+    CACHE_CONTROL_FLAG_COOKIE = 1 << 11,
+    /* set if this object should never be combined with another resource */
+    CACHE_CONTROL_FLAG_MISMATCH = 1 << 12
+};
 struct _HTTPRequest;
 
 void preinitObject(void);

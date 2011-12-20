@@ -963,8 +963,8 @@ validateEntry(ObjectPtr object, int fd,
         if((last_modified >= 0) != (object->last_modified >= 0))
             goto invalid;
 
-        if((object->cache_control & CACHE_MISMATCH) ||
-           (cache_control.flags & CACHE_MISMATCH))
+        if((object->cache_control & CACHE_CONTROL_FLAG_MISMATCH) ||
+           (cache_control.flags & CACHE_CONTROL_FLAG_MISMATCH))
             goto invalid;
 
         if(last_modified >= 0 && object->last_modified >= 0 &&
@@ -981,19 +981,19 @@ validateEntry(ObjectPtr object, int fd,
         if(etag && object->etag && strcmp(etag, object->etag) != 0)
             goto invalid;
 
-        /* If we don't have a usable ETag, and either CACHE_VARY or we
+        /* If we don't have a usable ETag, and either CACHE_CONTROL_FLAG_VARY or we
            don't have a last-modified date, we validate disk entries by
            using their date. */
         if(!(etag && object->etag) &&
            (!(last_modified >= 0 && object->last_modified >= 0) ||
-            ((cache_control.flags & CACHE_VARY) ||
-             (object->cache_control & CACHE_VARY)))) {
+            ((cache_control.flags & CACHE_CONTROL_FLAG_VARY) ||
+             (object->cache_control & CACHE_CONTROL_FLAG_VARY)))) {
             if(date >= 0 && date != object->date)
                 goto invalid;
             if(polipo_age >= 0 && polipo_age != object->age)
                 goto invalid;
         }
-        if((object->cache_control & CACHE_VARY) && dontTrustVaryETag >= 1) {
+        if((object->cache_control & CACHE_CONTROL_FLAG_VARY) && dontTrustVaryETag >= 1) {
             /* Check content-type to work around mod_gzip bugs */
             if(!httpHeaderMatch(atomContentType, object->headers, headers) ||
                !httpHeaderMatch(atomContentEncoding, object->headers, headers))
@@ -1653,7 +1653,7 @@ reallyWriteoutToDisk(ObjectPtr object, int upto, int max)
     if(upto < 0)
         upto = object->size;
 
-    if((object->cache_control & CACHE_NO_STORE) || 
+    if((object->cache_control & CACHE_CONTROL_FLAG_NO_STORE) || 
        (object->flags & OBJECT_LOCAL))
         return 0;
 
@@ -1746,7 +1746,7 @@ writeoutMetadata(ObjectPtr object)
     DiskCacheEntryPtr entry;
     int rc;
 
-    if((object->cache_control & CACHE_NO_STORE) || 
+    if((object->cache_control & CACHE_CONTROL_FLAG_NO_STORE) || 
        (object->flags & OBJECT_LOCAL))
         return 0;
     

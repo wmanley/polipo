@@ -399,35 +399,35 @@ httpPrintCacheControl(char *buf, int offset, int len,
     if(cache_control)
         flags |= cache_control->flags;
 
-    if(flags & CACHE_NO) {
+    if(flags & CACHE_CONTROL_FLAG_NO_CACHE) {
         PRINT_SEP();
         n = snnprintf(buf, n, len, "no-cache");
     }
-    if(flags & CACHE_PUBLIC) {
+    if(flags & CACHE_CONTROL_FLAG_PUBLIC) {
         PRINT_SEP();
         n = snnprintf(buf, n, len, "public");
     }
-    if(flags & CACHE_PRIVATE) {
+    if(flags & CACHE_CONTROL_FLAG_PRIVATE) {
         PRINT_SEP();
         n = snnprintf(buf, n, len, "private");
     }
-    if(flags & CACHE_NO_STORE) {
+    if(flags & CACHE_CONTROL_FLAG_NO_STORE) {
         PRINT_SEP();
         n = snnprintf(buf, n, len, "no-store");
     }
-    if(flags & CACHE_NO_TRANSFORM) {
+    if(flags & CACHE_CONTROL_FLAG_NO_TRANSFORM) {
         PRINT_SEP();
         n = snnprintf(buf, n, len, "no-transform");
     }
-    if(flags & CACHE_MUST_REVALIDATE) {
+    if(flags & CACHE_CONTROL_FLAG_MUST_REVALIDATE) {
         PRINT_SEP();
         n = snnprintf(buf, n, len, "must-revalidate");
     }
-    if(flags & CACHE_PROXY_REVALIDATE) {
+    if(flags & CACHE_CONTROL_FLAG_PROXY_REVALIDATE) {
         PRINT_SEP();
         n = snnprintf(buf, n, len, "proxy-revalidate");
     }
-    if(flags & CACHE_ONLY_IF_CACHED) {
+    if(flags & CACHE_CONTROL_FLAG_ONLY_IF_CACHED) {
         PRINT_SEP();
         n = snnprintf(buf, n, len, "only-if-cached");
     }
@@ -1008,9 +1008,9 @@ httpTweakCachability(ObjectPtr object)
 {
     int code = object->code;
 
-    if((object->cache_control & CACHE_AUTHORIZATION) &&
-       !(object->cache_control & CACHE_PUBLIC))
-        object->cache_control |= (CACHE_NO_HIDDEN | OBJECT_LINEAR);
+    if((object->cache_control & CACHE_CONTROL_FLAG_AUTHORIZATION) &&
+       !(object->cache_control & CACHE_CONTROL_FLAG_PUBLIC))
+        object->cache_control |= (CACHE_CONTROL_FLAG_NO_HIDDEN | OBJECT_LINEAR);
 
     /* This is not required by RFC 2616 -- but see RFC 3143 2.1.1.  We
        manically avoid caching replies that we don't know how to
@@ -1022,28 +1022,28 @@ httpTweakCachability(ObjectPtr object)
        code != 304 && code != 307 &&
        code != 403 && code != 404 && code != 405 && code != 416) {
         object->cache_control |=
-            (CACHE_NO_HIDDEN | CACHE_MISMATCH | OBJECT_LINEAR);
+            (CACHE_CONTROL_FLAG_NO_HIDDEN | CACHE_CONTROL_FLAG_MISMATCH | OBJECT_LINEAR);
     } else if(code != 200 && code != 206 &&
               code != 300 && code != 301 && code != 304 &&
               code != 410) {
-        if(object->expires < 0 && !(object->cache_control & CACHE_PUBLIC)) {
-            object->cache_control |= CACHE_NO_HIDDEN;
+        if(object->expires < 0 && !(object->cache_control & CACHE_CONTROL_FLAG_PUBLIC)) {
+            object->cache_control |= CACHE_CONTROL_FLAG_NO_HIDDEN;
         }
     } else if(dontCacheRedirects && (code == 301 || code == 302)) {
-        object->cache_control |= CACHE_NO_HIDDEN;
+        object->cache_control |= CACHE_CONTROL_FLAG_NO_HIDDEN;
     }
 
     if(urlIsUncachable(object->key, object->key_size)) {
-        object->cache_control |= CACHE_NO_HIDDEN;
+        object->cache_control |= CACHE_CONTROL_FLAG_NO_HIDDEN;
     }
 
-    if((object->cache_control & CACHE_NO_STORE) != 0) {
-        object->cache_control |= CACHE_NO_HIDDEN;
+    if((object->cache_control & CACHE_CONTROL_FLAG_NO_STORE) != 0) {
+        object->cache_control |= CACHE_CONTROL_FLAG_NO_HIDDEN;
     }
 
-    if(object->cache_control & CACHE_VARY) {
+    if(object->cache_control & CACHE_CONTROL_FLAG_VARY) {
         if(!object->etag || dontTrustVaryETag >= 2) {
-            object->cache_control |= CACHE_MISMATCH;
+            object->cache_control |= CACHE_CONTROL_FLAG_MISMATCH;
         }
     }
 }

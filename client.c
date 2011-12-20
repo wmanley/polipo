@@ -903,12 +903,12 @@ httpClientRequestContinue(int forbidden_code, AtomPtr url,
         return httpClientSideRequest(request);
     }
 
-    if(request->cache_control.flags & CACHE_AUTHORIZATION) {
+    if(request->cache_control.flags & CACHE_CONTROL_FLAG_AUTHORIZATION) {
         do {
             object = makeObject(OBJECT_HTTP, url->string, url->length, 0, 0,
                                 requestfn, NULL);
             if(object && object->flags != OBJECT_INITIAL) {
-                if(!(object->cache_control & CACHE_PUBLIC)) {
+                if(!(object->cache_control & CACHE_CONTROL_FLAG_PUBLIC)) {
                     privatiseObject(object, 0);
                     releaseObject(object);
                     object = NULL;
@@ -1176,7 +1176,7 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
     else if(local)
         validate = 
             objectMustRevalidate(request->object, &request->cache_control);
-    else if(request->cache_control.flags & CACHE_ONLY_IF_CACHED)
+    else if(request->cache_control.flags & CACHE_CONTROL_FLAG_ONLY_IF_CACHED)
         validate = 0;
     else if((request->object->flags & OBJECT_FAILED) &&
             !(object->flags & OBJECT_INPROGRESS) &&
@@ -1193,7 +1193,7 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
     else
         validate = 0;
 
-    if(request->cache_control.flags & CACHE_ONLY_IF_CACHED) {
+    if(request->cache_control.flags & CACHE_CONTROL_FLAG_ONLY_IF_CACHED) {
         validate = 0;
         if(!haveData) {
             if(serveNow) {
@@ -1248,11 +1248,11 @@ httpClientNoticeRequest(HTTPRequestPtr request, int novalidate)
         return 1;
 
     conditional = (haveData && request->method == METHOD_GET);
-    if(!mindlesslyCacheVary && (request->object->cache_control & CACHE_VARY))
+    if(!mindlesslyCacheVary && (request->object->cache_control & CACHE_CONTROL_FLAG_VARY))
         conditional = conditional && (request->object->etag != NULL);
 
     conditional =
-        conditional && !(request->object->cache_control & CACHE_MISMATCH);
+        conditional && !(request->object->cache_control & CACHE_CONTROL_FLAG_MISMATCH);
 
     request->object->flags |= OBJECT_VALIDATING;
     rc = request->object->request(request->object,

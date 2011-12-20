@@ -2022,7 +2022,7 @@ httpServerHandlerHeaders(int eof,
     /* Okay, we're going to accept this reply. */
 
     if((code == 200 || code == 206 || code == 304 || code == 412) &&
-       (cache_control.flags & (CACHE_NO | CACHE_NO_STORE) ||
+       (cache_control.flags & (CACHE_CONTROL_FLAG_NO_CACHE | CACHE_CONTROL_FLAG_NO_STORE) ||
         cache_control.max_age == 0 ||
         (cacheIsShared && cache_control.s_maxage == 0) ||
         (expires >= 0 && expires <= object->age))) {
@@ -2052,7 +2052,7 @@ httpServerHandlerHeaders(int eof,
 
     connection->server->lies--;
 
-    if(object->cache_control & CACHE_MISMATCH)
+    if(object->cache_control & CACHE_CONTROL_FLAG_MISMATCH)
         supersede = 1;
 
     if(code == 304 || code == 412) {
@@ -2082,7 +2082,7 @@ httpServerHandlerHeaders(int eof,
                 supersede = 1;
         }
 
-        if(!supersede && (object->cache_control & CACHE_VARY) &&
+        if(!supersede && (object->cache_control & CACHE_CONTROL_FLAG_VARY) &&
            dontTrustVaryETag >= 1) {
             /* Check content-type to work around mod_gzip bugs */
             if(!httpHeaderMatch(atomContentType, object->headers, headers) ||
@@ -2153,8 +2153,8 @@ httpServerHandlerHeaders(int eof,
     suspectDynamic =
         (!etag && last_modified < 0) ||
         (cache_control.flags &
-         (CACHE_NO_HIDDEN | CACHE_NO | CACHE_NO_STORE |
-          (cacheIsShared ? CACHE_PRIVATE : 0))) ||
+         (CACHE_CONTROL_FLAG_NO_HIDDEN | CACHE_CONTROL_FLAG_NO_CACHE | CACHE_CONTROL_FLAG_NO_STORE |
+          (cacheIsShared ? CACHE_CONTROL_FLAG_PRIVATE : 0))) ||
         (cache_control.max_age >= 0 && cache_control.max_age <= 2) ||
         (cacheIsShared && 
          cache_control.s_maxage >= 0 && cache_control.s_maxage <= 5) ||
