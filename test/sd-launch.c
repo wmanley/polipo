@@ -50,9 +50,11 @@ static const char* USAGE =
     "    -h, --help               Display this help message.\n"
     "    -l, --logfile            The STDIN/STDERR of the spawned instance will\n"
     "                             be redirected to this file.\n"
+    "    -e, --stderr             The STDERR of the spawned instance will be \n"
+    "                             redirected to this file.\n"
     "\n"
     "Typical use:\n"
-    "    $ export `sd-test-launch polipo`\n";
+    "    $ export `sd-launch polipo`\n";
 
 static const char* ADDR = "127.0.0.1";
 static const char* DEFAULT_LOGFILE = "/dev/null";
@@ -60,10 +62,11 @@ static const char* DEFAULT_LOGFILE = "/dev/null";
 struct options_t
 {
     const char* logfile;
+    const char* stderr;
 };
 
 char** parse_args(struct options_t* opts, int argc, char** argv);
-static pid_t sd_spawn(int* port, int log_fd, char** argv);
+static pid_t sd_spawn(int* port, int stdout_fd, int stderr_fd, char** argv);
 
 enum log_level_t
 {
@@ -105,16 +108,6 @@ void report(enum log_level_t log_level, const char* fmt, ...)
     };
 }
 
-void setCLOEXEC(int fd)
-{
-    int mask = fcntl(fd, F_GETFL, 0);
-    if (mask < 0 || fcntl(fd, F_SETFL, mask | O_CLOEXEC) < 0)
-    {
-        report(ERROR, "Failed to set socket in CLOEXEC mode.\n");
-        abort();
-    }
-}
-
 // Implementation note: This is a very short-lived program -- it either execs
 // another application, or aborts. So for the sake of clarity we don't care
 // at all about cleaning up resources.
@@ -123,16 +116,31 @@ int main(int argc, char** argv)
     struct options_t opts;
     int port;
     int logfile_fd;
+    int stderr_fd;
 
     const char** program_argv = parse_args(&opts, argc, argv);
 
+    // O_CLOEXEC will be removed when we dup2 these fds into position below.
     if ((logfile_fd = open(opts.logfile, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 00640)) == -1)
     {
         report(ERROR, "Opening log file \"%s\" failed: %s\n",
                opts.logfile, strerror(errno));
         exit(1);
     }
-    pid_t pid = sd_spawn(&port, logfile_fd, program_argv);
+    if (opts.stderr)
+    {
+        if ((stderr_fd = open(opts.stderr, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 00640)) == -1)
+        {
+            report(ERROR, "Opening stderr log file \"%s\" failed: %s\n",
+                   opts.logfile, strerror(errno));
+            exit(1);
+        }
+    }
+    else
+    {
+        stderr_fd = logfile_fd;
+    }
+    pid_t pid = sd_spawn(&port, logfile_fd, stderr_fd, program_argv);
     printf("LAUNCHED_PID=%d\n"
            "LAUNCHED_PORT=%d\n", pid, port);
     return 0;
@@ -150,16 +158,18 @@ char** parse_args(struct options_t* opts, int argc, char** argv)
 {
     // Defaults:
     opts->logfile = DEFAULT_LOGFILE;
+    opts->stderr = NULL;
 
     static struct option long_options[] =
     {
         {"help", no_argument, NULL, 'h'},
         {"logfile", required_argument, NULL, 'l'},
+        {"stderr", required_argument, NULL, 'e'},
         {NULL, 0, NULL, 0}
     };
 
     int opt = 0;
-    while ((opt = getopt_long(argc, argv, "+hl:", long_options, NULL)) != -1)
+    while ((opt = getopt_long(argc, argv, "+hl:e:", long_options, NULL)) != -1)
     {
         switch (opt)
         {
@@ -169,6 +179,9 @@ char** parse_args(struct options_t* opts, int argc, char** argv)
                 break;
             case 'l': // -l, --logfile
                 opts->logfile = strdup(optarg);
+                break;
+            case 'e': // -e, --stderr
+                opts->stderr = strdup(optarg);
                 break;
             default:
                 fprintf(stderr, usage(argv[0]));
@@ -256,7 +269,7 @@ int open_listening_socket(int* port)
 //
 // @return Pid of process.
 // @param[out] port: port number.
-pid_t sd_spawn(int* port, int log_fd, char** launch_argv)
+pid_t sd_spawn(int* port, int stdout_fd, int stderr_fd, char** launch_argv)
 {
     // create listening socket
     int sfd = open_listening_socket(port);
@@ -285,8 +298,8 @@ pid_t sd_spawn(int* port, int log_fd, char** launch_argv)
 
         // Remap the fd numbers appropriately
         checked_dup2(open("/dev/null", O_RDONLY), 0);
-        checked_dup2(log_fd, 1);
-        checked_dup2(log_fd, 2);
+        checked_dup2(stdout_fd, 1);
+        checked_dup2(stderr_fd, 2);
         checked_dup2(sfd, 3);
         close(4);
         close(5);

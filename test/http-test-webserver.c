@@ -99,11 +99,14 @@ int main(int argc, char* argv[], char* envp[]) {
     while ((fd = accept(sfd, NULL, NULL))) {
         check(fd >= 0, "Couldn't accept connection: %s\n", strerror(errno));
 
+        fprintf(stderr, "Received request:\n");
+
         // Store the last 4 bytes as \r\n\r\n means the request has finished
         char last_bytes[5] = "\0\0\0\0";
         for (;;) {
             char buf[bufsize];
             ssize_t bytes_read = read(fd, buf, bufsize);
+            fwrite(buf, bytes_read, 1, stderr);
             if (bytes_read < 0) {
                 fprintf(stderr, "read failed!\n");
                 abort();
@@ -118,7 +121,7 @@ int main(int argc, char* argv[], char* envp[]) {
                 memcpy(last_bytes, buf + bytes_read - 4, 4);
             }
             if (memcmp(last_bytes, "\r\n\r\n", 4) == 0) {
-//                fprintf(stderr, "All done!\n");
+                fprintf(stderr, "All done!\n");
                 // Finished receiving HTTP request
                 break;
             }
@@ -126,7 +129,7 @@ int main(int argc, char* argv[], char* envp[]) {
         off_t offset = 0;
         while (offset < file_size) {
             check(sendfile(fd, infile, &offset, 1024*1024) >= 0, "Sendfile failed\n");
-//            fprintf(stderr, "Written %d/%d bytes\n", (int)offset, file_size);
+            fprintf(stderr, "Written %d/%d bytes\n", (int)offset, file_size);
         }
         requests_served++;
         close(fd);

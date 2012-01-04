@@ -16,6 +16,8 @@ function fail {
 	echo "FAIL: $1" 1>&2
 	echo "Polipo log:"
 	cat polipo_log.txt
+	echo -e "\nHTTP server log:"
+	cat http_log.txt
 	exit 1
 }
 
@@ -48,7 +50,7 @@ function run_test_case {
 	# Start http server and set HTTP_SERVER_PID and HTTP_SERVER_PORT
 	# The test web server will serve any URL so it doesn't matter which one we
 	# choose
-	export $(${POLIPO_TEST_DIR}/sd-launch -l http_log.txt ${POLIPO_TEST_DIR}/http-test-webserver "${RESPONSE}" | sed s/LAUNCHED_/HTTP_SERVER_/g)
+	export $(${POLIPO_TEST_DIR}/sd-launch -l http_config.txt -e http_log.txt ${POLIPO_TEST_DIR}/http-test-webserver "${RESPONSE}" | sed s/LAUNCHED_/HTTP_SERVER_/g)
 
 	start_polipo
 	for n in {1..10}
@@ -72,8 +74,8 @@ function run_test_case {
 
 	kill "${HTTP_SERVER_PID}"
 
-	export $(<http_log.txt)
-	rm http_log.txt
+	export $(<http_config.txt)
+	rm http_config.txt
 	[ $REQUESTS_SERVED == $EXPECTED_REQUESTS_SERVED ] || fail "TOO MANY REQUESTS: ${REQUESTS_SERVED}"
 }
 
