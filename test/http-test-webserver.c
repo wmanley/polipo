@@ -54,8 +54,6 @@ void check(int condition, const char* fmt, ...) {
 const size_t bufsize = 4096;
 volatile static int requests_served = 0;
 
-// If the child exits when this handler is in effect it has not yet made an
-// HTTP request.  This is an error.
 void sigterm_handler(int signo __attribute__((unused)) ) {
     printf("REQUESTS_SERVED=%d\n", requests_served);
     exit(0);
