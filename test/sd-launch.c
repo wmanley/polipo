@@ -35,6 +35,12 @@ THE SOFTWARE.
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifndef O_CLOEXEC
+// Old versions of uclibc don't have O_CLOEXEC defined even if the underlying
+// kernel supports it:
+#define O_CLOEXEC 0
+#endif
+
 static const char* USAGE =
     "Usage: %s [options] program [args...]\n"
     "\n"

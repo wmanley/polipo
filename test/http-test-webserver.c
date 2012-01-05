@@ -39,6 +39,12 @@ THE SOFTWARE.
 #include <stdarg.h>
 #include "../sd-daemon.h"
 
+#ifndef O_CLOEXEC
+// Old versions of uclibc don't have O_CLOEXEC defined even if the underlying
+// kernel supports it:
+#define O_CLOEXEC 0
+#endif
+
 /**
  * Portable (and sub-optimal) implementation of Linux sendfile written such
  * that this will also work on BSDs.
