@@ -1,4 +1,4 @@
-#!/bin/bash -eu
+#!/bin/sh -eu
 
 TMP_DIR=$(mktemp -d /tmp/polipo-test.XXXXXX)
 POLIPO_DIR=$PWD
@@ -12,27 +12,28 @@ cd "$TMP_DIR"
 mkdir "${TMP_DIR}/cache_root"
 mkdir "${TMP_DIR}/responses"
 
-function fail {
+fail () {
 	echo "FAIL: $1" 1>&2
 	echo "Polipo log:"
 	cat polipo_log.txt
-	echo -e "\nHTTP server log:"
+	echo
+	echo "HTTP server log:"
 	cat http_log.txt
 	exit 1
 }
 
 # Start polipo and set POLIPO_PID, POLIPO_PORT and http_proxy
-function start_polipo {
+start_polipo () {
 	export $(${POLIPO_TEST_DIR}/sd-launch -l polipo_log.txt ${POLIPO_DIR}/polipo -c ${POLIPO_TEST_DIR}/polipo.conf diskCacheRoot=${TMP_DIR}/cache_root logLevel=${LOG_LEVEL} | sed s/LAUNCHED_/POLIPO_/g)
 	"$TEST_DEBUG" && echo "Polipo started pid=${POLIPO_PID} address=http://localhost:${POLIPO_PORT}/" 1>&2
 	export http_proxy=http://localhost:${POLIPO_PORT}/
 }
 
-function stop_polipo {
+stop_polipo () {
 	kill "${POLIPO_PID}"
 }
 
-function run_test_case {
+run_test_case () {
 	FILENAME_ROOT=$1
 	EXPECTED_REQUESTS_SERVED=$2
 
@@ -53,7 +54,7 @@ function run_test_case {
 	export $(${POLIPO_TEST_DIR}/sd-launch -l http_config.txt -e http_log.txt ${POLIPO_TEST_DIR}/http-test-webserver "${RESPONSE}" | sed s/LAUNCHED_/HTTP_SERVER_/g)
 
 	start_polipo
-	for n in {1..10}
+	for n in $(seq 1 10)
 	do
 		curl -o "${SAVE_LOCATION}" "http://localhost:${HTTP_SERVER_PORT}/" 2>/dev/null
 		cmp "${PAYLOAD}" "${SAVE_LOCATION}" || fail "Files don't match"
@@ -61,7 +62,7 @@ function run_test_case {
 	done
 	stop_polipo
 
-	for n in {1..10}
+	for n in $(seq 1 10)
 	do
 		(
 			start_polipo
@@ -74,9 +75,10 @@ function run_test_case {
 
 	kill "${HTTP_SERVER_PID}"
 
-	export $(<http_config.txt)
+	unset REQUESTS_SERVED
+	export $(cat http_config.txt)
 	rm http_config.txt
-	[ $REQUESTS_SERVED == $EXPECTED_REQUESTS_SERVED ] || fail "TOO MANY REQUESTS: ${REQUESTS_SERVED}"
+	[ "$REQUESTS_SERVED" = "$EXPECTED_REQUESTS_SERVED" ] || fail "TOO MANY REQUESTS: ${REQUESTS_SERVED}"
 }
 
 for HEADER in ${POLIPO_TEST_DIR}/expect_cache/*.header
