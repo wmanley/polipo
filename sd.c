@@ -23,17 +23,26 @@ THE SOFTWARE.
 #include "polipo.h"
 #include <errno.h>
 
+#if defined(__linux__)
+static int using_linux = 1;
+#else
+static int using_linux = 0;
+#endif
+
 FdEventHandlerPtr
 create_listener_sd(int (*handler)(int, FdEventHandlerPtr, AcceptRequestPtr),
                    void *data)
 {
     int done;
-    int one;
     int rc;
     int fd = SD_LISTEN_FDS_START;
     int mask;
 
-    rc = sd_is_socket(fd, AF_INET, SOCK_STREAM, 1);
+    /* Some operating systems define but don't support SO_REUSEADDR to check
+       that listen has been called.  Notably this includes Mac OS X.  We're
+       also not interested in checking that the family is AF_INET because a
+       private http cache may actually want to listen on an AF_UNIX socket. */
+    rc = sd_is_socket(fd, 0, SOCK_STREAM, using_linux ? 1 : -1);
     if(rc <= 0) {
         do_log_error(L_ERROR, errno, "Passed file descriptor is not a valid socket");
         done = (*handler)(-errno, NULL, NULL);
@@ -48,11 +57,6 @@ create_listener_sd(int (*handler)(int, FdEventHandlerPtr, AcceptRequestPtr),
         errno = EBADF;
         goto fail;
     }
-
-    socklen_t optlen = sizeof(one);
-    rc = getsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&one, &optlen);
-    if(rc < 0) do_log_error(L_WARN, errno, "Failed to check SO_REUSEADDR on socket");
-    if(one != 1) do_log_error(L_WARN, EINVAL, "Socket option SO_REUSEADDR is not set");
 
     return schedule_accept(fd, handler, data);
 fail:

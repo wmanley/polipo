@@ -125,7 +125,7 @@ int main(int argc, char* argv[], char* envp[]) {
     size_t file_size = stat_buf.st_size;
 
     // We should have had our listening socket passed in as fd 3
-    if (sd_listen_fds(1) != 1 || !sd_is_socket(3, 0, SOCK_STREAM, 0) < 0) {
+    if (sd_listen_fds(1) != 1 || !sd_is_socket(3, 0, SOCK_STREAM, -1) < 0) {
         fprintf(stderr, "Sockets incorrectly passed in!\n");
         exit(1);
     }

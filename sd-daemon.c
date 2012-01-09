@@ -63,7 +63,7 @@
 
 _sd_export_ int sd_listen_fds(int unset_environment) {
 
-#if defined(DISABLE_SYSTEMD) || !defined(__linux__)
+#if defined(DISABLE_SYSTEMD)
         return 0;
 #else
         int r, fd;
