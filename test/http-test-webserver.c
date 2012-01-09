@@ -31,7 +31,6 @@ THE SOFTWARE.
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/sendfile.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -39,6 +38,47 @@ THE SOFTWARE.
 #include <unistd.h>
 #include <stdarg.h>
 #include "../sd-daemon.h"
+
+/**
+ * Portable (and sub-optimal) implementation of Linux sendfile written such
+ * that this will also work on BSDs.
+ */
+ssize_t portable_sendfile(int out_fd, int in_fd, off_t *offset, size_t count)
+{
+    char buf[4096];
+    off_t so = 0;
+    ssize_t bytes_read;
+
+    if (count > 4096)
+        count = 4096;
+
+    if (offset)
+        bytes_read = pread(in_fd, buf, count, *offset);
+    else
+        bytes_read = read(in_fd, buf, count);
+
+    if (bytes_read < 0) {
+        perror("pread");
+        // Error
+        return bytes_read;
+    }
+
+    if (offset)
+        *offset += bytes_read;
+
+    ssize_t total_written = 0;
+    do {
+        ssize_t bytes_written = write(out_fd, buf + total_written, bytes_read - total_written);
+        if (bytes_written < 0) {
+            perror("write");
+            // Error
+            return bytes_written;
+        }
+        total_written += bytes_written;
+    } while (total_written < bytes_read);
+
+    return bytes_read;
+}
 
 void check(int condition, const char* fmt, ...) {
     if (!condition) {
@@ -126,7 +166,7 @@ int main(int argc, char* argv[], char* envp[]) {
         }
         off_t offset = 0;
         while (offset < file_size) {
-            check(sendfile(fd, infile, &offset, 1024*1024) >= 0, "Sendfile failed\n");
+            check(portable_sendfile(fd, infile, &offset, 1024*1024) >= 0, "Sendfile failed\n");
             fprintf(stderr, "Written %d/%d bytes\n", (int)offset, file_size);
         }
         requests_served++;
