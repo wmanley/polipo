@@ -26,6 +26,7 @@ typedef struct _Atom {
     unsigned short length;
     char string[1];
 } AtomRec, *AtomPtr;
+typedef const AtomRec *ConstAtomPtr;
 
 typedef struct _AtomList {
     int length;
@@ -42,17 +43,17 @@ void initAtoms(void);
 AtomPtr internAtom(const char *string);
 AtomPtr internAtomN(const char *string, int n);
 AtomPtr internAtomLowerN(const char *string, int n);
-AtomPtr atomCat(AtomPtr atom, const char *string);
-int atomSplit(AtomPtr atom, char c, AtomPtr *return1, AtomPtr *return2);
+AtomPtr atomCat(ConstAtomPtr atom, const char *string);
+int atomSplit(ConstAtomPtr atom, char c, AtomPtr *return1, AtomPtr *return2);
 AtomPtr retainAtom(AtomPtr atom);
 void releaseAtom(AtomPtr atom);
 AtomPtr internAtomError(int e, const char *f, ...)
      ATTRIBUTE ((format (printf, 2, 3)));
 AtomPtr internAtomF(const char *format, ...)
      ATTRIBUTE ((format (printf, 1, 2)));
-char *atomString(AtomPtr) ATTRIBUTE ((pure));
+const char *atomString(ConstAtomPtr) ATTRIBUTE ((pure));
 AtomListPtr makeAtomList(AtomPtr *atoms, int n);
 void destroyAtomList(AtomListPtr list);
-int atomListMember(AtomPtr atom, AtomListPtr list)
+int atomListMember(ConstAtomPtr atom, AtomListPtr list)
     ATTRIBUTE ((pure));
 void atomListCons(AtomPtr atom, AtomListPtr list);
