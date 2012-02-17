@@ -73,6 +73,7 @@ int strcmp_n(const char *string, const char *buf, int n) ATTRIBUTE ((pure));
 int digit(char) ATTRIBUTE ((const));
 int letter(char) ATTRIBUTE ((const));
 char lwr(char) ATTRIBUTE ((const));
+/* Like memcpy but make the contents lower case */
 char* lwrcpy(char *restrict dst, const char *restrict src, int n);
 int lwrcmp(const char *as, const char *bs, int n) ATTRIBUTE ((pure));
 int strcasecmp_n(const char *string, const char *buf, int n)
@@ -93,6 +94,11 @@ char* sprintf_a(const char *f, ...)
 unsigned int hash(unsigned seed, const void *restrict key, int key_size, 
                   unsigned int hash_size)
      ATTRIBUTE ((pure));
+/**
+ * Much like strerror returns a string representation of the given error code.
+ * The returned string is allocated in an internal buffer and will be
+ * invalidated the next time this function is called.
+ */
 char *pstrerror(int e);
 time_t mktime_gmt(struct tm *tm) ATTRIBUTE ((pure));
 AtomPtr expandTilde(AtomPtr filename);
