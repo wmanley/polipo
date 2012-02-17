@@ -85,7 +85,7 @@ internAtom(const char *string)
 }
 
 AtomPtr
-atomCat(AtomPtr atom, const char *string)
+atomCat(ConstAtomPtr atom, const char *string)
 {
     char buf[128];
     char *s = buf;
@@ -104,7 +104,7 @@ atomCat(AtomPtr atom, const char *string)
 }
 
 int
-atomSplit(AtomPtr atom, char c, AtomPtr *return1, AtomPtr *return2)
+atomSplit(ConstAtomPtr atom, char c, AtomPtr *return1, AtomPtr *return2)
 {
     char *p;
     AtomPtr atom1, atom2;
@@ -272,8 +272,8 @@ internAtomError(int e, const char *f, ...)
     return atom;
 }
 
-char *
-atomString(AtomPtr atom)
+const char *
+atomString(ConstAtomPtr atom)
 {
     if(atom)
         return atom->string;
@@ -322,7 +322,7 @@ destroyAtomList(AtomListPtr list)
 }
 
 int
-atomListMember(AtomPtr atom, AtomListPtr list)
+atomListMember(ConstAtomPtr atom, AtomListPtr list)
 {
     int i;
     for(i = 0; i < list->length; i++) {
